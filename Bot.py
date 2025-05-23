@@ -95,7 +95,7 @@ async def receive_phone(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     clean_phone = ''.join(c for c in phone if c.isdigit())
     if not clean_phone.startswith('855'):
-        clean_phone = '855' + clean_phone # Cambodian format
+        clean_phone = '855' + clean_phone[-8:]  # Cambodian format
     
     if clean_phone in customer_registry:
         await update.message.reply_text(f"ℹ️ Phone number {clean_phone} is already registered.")
