@@ -10,7 +10,8 @@ from telegram.ext import (
     filters,
     ConversationHandler
 )
-import re
+import re 
+import os
 
 # Constants
 ADMIN_IDS = [5742761331]  # Replace with your Telegram ID
@@ -377,7 +378,14 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 def main():
-    app = ApplicationBuilder().token("8034394783:AAETP8ska_DaX53cqVXuotPEVMzfkeUeKjA").build()
+   def main():
+    # Get token from environment variable
+    token = os.getenv('TELEGRAM_TOKEN')
+    if not token:
+        print("ERROR: TELEGRAM_TOKEN environment variable not set!")
+        return
+    
+    app = ApplicationBuilder().token(token).build()
 
     # Conversation handlers
     reg_conv_handler = ConversationHandler(
