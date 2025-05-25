@@ -315,7 +315,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     f"📱 លេខទូរស័ព្ទ: {phone}\n"
                     f"🚗 លេខផ្លាក: {plate}\n"
                     "📍 ទីតាំង: លាងរថយន្ត Speed Car Wash BVM PAC\n\n"
-                    "សូមមកយករថយន្តរបស់អ្នក។ សូមអរណុសម្រាប់ការង់ចាំ\n\n"
+                    "សូមមកយករថយន្តរបស់អ្នក។\n\n"
                     "✨ *Your car is ready!* ✨\n\n"
                     f"📱 Phone: {phone}\n"
                     f"🚗 Plate: {plate}\n"
