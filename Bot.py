@@ -14,21 +14,18 @@ import re
 
 # Constants
 ADMIN_IDS = [5742761331]  # Replace with your Telegram ID
+GROUP_ID = -4813155053
 PHONE_REGEX = re.compile(r'^\+?[0-9\s\-]{8,15}$')
 PLATE_REGEX = re.compile(r'^[A-Z0-9-]{3,10}$')
-
 # Conversation states
 WAITING_PHONE, WAITING_PLATE, WAITING_CUSTOMER = range(3)
-
 # Database
 customer_registry = {}  # Format: {phone_number: {"admin_chat": int, "customer_chat": int, "status": str, "plate": str}}
-
-
 # Helper functions
 def clean_phone_number(phone: str) -> str:
-    """Normalize phone number to Cambodian format (855XXXXXXXXX)"""
-    clean_phone = ''.join(c for c in phone if c.isdigit())
-    return '855' + clean_phone if not clean_phone.startswith('855') else clean_phone
+
+    """Normalize phone number by removing all non-digit characters"""
+    return ''.join(c for c in phone if c.isdigit())
 
 
 # Command handlers
@@ -52,34 +49,39 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parse_mode='Markdown'
         )
     else:
-        if context.args and context.args[0] in customer_registry:
-            phone = context.args[0]
+        # Try to extract argument from /start <phone> deep link
+        phone = None
+        if update.message and update.message.text:
+            parts = update.message.text.strip().split()
+            if len(parts) > 1:
+                phone = parts[1]
+        if phone and phone in customer_registry:
             customer_chat = update.effective_chat.id
-            
+
             customer_registry[phone]["customer_chat"] = customer_chat
             customer_registry[phone]["status"] = "waiting"
-            
+
             await context.bot.send_message(
                 chat_id=customer_registry[phone]["admin_chat"],
                 text=(
-                    f"*អតិថិជនបានចុះឈ្មោះតាម QR ✅*\n\n"
+                    f"*✅អតិថិជនបានចុះឈ្មោះតាមរយៈ QR Code ដោយជោគជ័យ*\n\n"
                     f"📱 លេខទូរស័ព្ទ ៖ {phone}\n"
                     f"🚗 លេខផ្លាក ៖ {customer_registry[phone].get('plate', 'មិនមាន')}\n"
-                    f"ស្ថានភាព៖ កំពុងរង់ចាំសេវា\n\n"
-                    f"*Customer Registered via QR ✅*\n\n"
+                    f"⏳ ស្ថានភាព៖ កំពុងរង់ចាំសេវា\n\n"
+                    f"*✅Customer has successfully registered through QR Code*\n\n"
                     f"📱 Phone : {phone}\n"
                     f"🚗 Plate : {customer_registry[phone].get('plate', 'Not provided')}\n"
-                    f"Status : Waiting for service"
+                    f"⏳ Status : Waiting for service"
                 ),
                 parse_mode='Markdown'
             )
-            
+
             await update.message.reply_text(
-                f"*ការចុះឈ្មោះបានជោគជ័យ!* ✅\n\n"
+                f"✅ ការចុះឈ្មោះអតិថិជនបានដោយជោគជ័យ!\n\n"
                 f"📱 លេខទូរស័ព្ទ ៖ {phone}\n"
                 f"🚗 លេខផ្លាក ៖ {customer_registry[phone].get('plate', 'មិនមាន')}\n\n"
                 "អ្នកនឹងទទួលបានការជូនដំណឹងនៅពេលរថយន្តរបស់អ្នករួចរាល់។\n\n"
-                f"*Registration Complete! ✅*\n\n"
+                f"✅ Successful customer registration completed!\n\n"
                 f"📱 Phone : {phone}\n"
                 f"🚗 Plate : {customer_registry[phone].get('plate', 'Not provided')}\n\n"
                 "You'll be notified when your car is ready.",
@@ -126,15 +128,8 @@ async def receive_phone(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return WAITING_PHONE
     
     clean_phone = clean_phone_number(phone)
-    
-    if clean_phone in customer_registry:
-        await update.message.reply_text(
-            f"ℹ️ លេខទូរស័ព្ទ {clean_phone} នេះបានចុះឈ្មោះក្នុងប្រព័ន្ធរួចហើយ។\n"
-            f"ℹ️ Phone number {clean_phone} is already registered."
-        )
-        return ConversationHandler.END
-    
     context.user_data['register_phone'] = clean_phone
+    
     await update.message.reply_text(
         "✅ សូមផ្ញើលេខផ្លាករថយន្តឥឡូវនេះ:\n"
         "✅ Now please send the vehicle plate number:"
@@ -178,7 +173,7 @@ async def receive_plate(update: Update, context: ContextTypes.DEFAULT_TYPE):
     bio.seek(0)
 
     caption = (
-        "អតិថិជនត្រូវបានចុះឈ្មោះ ✅\n\n"
+        "✅ បានចុះឈ្មោះអតិថិជនថ្មីរួចរាល់ \n\n"
         f"📱 លេខទូរស័ព្ទ : {clean_phone}\n"
         f"🚗 លេខផ្លាក : {plate}\n\n"
         "1. បង្ហាញកូដ QR នេះទៅអតិថិជន\n"
@@ -186,7 +181,7 @@ async def receive_plate(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "3. ពួកគេនឹងត្រូវបានចុះឈ្មោះដោយស្វ័យប្រវត្តិ\n"
         "ឬផ្ញើតំណផ្ទាល់នេះទៅពួកគេ:\n"
         f"{deep_link}\n\n"
-        "Customer Registered ✅\n\n"
+        "✅ New customer registration completed\n\n"
         f"📱 Phone : {clean_phone}\n"
         f"🚗 Plate : {plate}\n\n"
         "1. Show this QR code to the customer\n"
@@ -198,8 +193,7 @@ async def receive_plate(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await update.message.reply_photo(
         photo=bio,
-        caption=caption,
-        parse_mode=''
+        caption=caption
     )
 
     return ConversationHandler.END
@@ -223,22 +217,22 @@ async def receive_customer_phone(update: Update, context: ContextTypes.DEFAULT_T
     customer_registry[clean_phone]["status"] = "waiting"
     
     admin_message = (
-        f"អតិថិជនបានចុះឈ្មោះ  ✅ \n\n"
+        f"✅ បានចុះឈ្មោះអតិថិជនថ្មីរួចរាល់\n\n"
         f"📱 លេខទូរស័ព្ទ : {clean_phone}\n"
         f"🚗 លេខផ្លាក : {customer_registry[clean_phone].get('plate', 'មិនមាន')}\n"
-        f"ស្ថានភាព : កំពុងរង់ចាំសេវា\n\n"
-        f"Customer Registered  ✅\n\n"
+        f"⏳ ស្ថានភាព : កំពុងរង់ចាំសេវា\n\n"
+        f"✅ New customer registration completed\n\n"
         f"📱 Phone : {clean_phone}\n"
         f"🚗 Plate : {customer_registry[clean_phone].get('plate', 'Not provided')}\n"
-        f"Status: Waiting for service"
+        f"⏳ Status: Waiting for service"
     )
     
     customer_message = (
-        f"សូមអរគុណ! \n\n"
+        f"✅ អតិថិជនបានចុះឈ្មោះជោគជ័យ!!\n\n"
         f"📱 លេខទូរស័ព្ទ : {clean_phone}\n"
         f"🚗 លេខផ្លាក : {customer_registry[clean_phone].get('plate', 'មិនមាន')}\n\n"
         "អ្នកនឹងទទួលបានការជូនដំណឹងនៅពេលរថយន្តរបស់អ្នករួចរាល់។\n\n"
-        f"*Thank you!*\n\n"
+        f"*✅ Customer registered successfully!!*\n\n"
         f"📱 Phone : {clean_phone}\n"
         f"🚗 Plate : {customer_registry[clean_phone].get('plate', 'Not provided')}\n\n"
         "You'll be notified when your car is ready."
@@ -283,7 +277,7 @@ async def ready(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ]
     
     await update.message.reply_text(
-        "📢 ជ្រើសរើសអតិថិជនដើម្បីជូនដំណឹង (លេខទូរស័ព្ទ - លេខផ្លាក):\n"
+        "📢 ជ្រើសរើសអតិថិជនដើម្បីជូនដំណឹង (លេខទូរស័ព្ទ - ផ្លាកលេខ):\n"
         "📢 Select customer to notify (Phone - Plate):", 
         reply_markup=InlineKeyboardMarkup(buttons)
     )
@@ -301,25 +295,38 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await context.bot.send_message(
                 chat_id=customer_data["customer_chat"],
                 text=(
-                    "✨ *រថយន្តរបស់អ្នករួចរាល់ហើយ!* ✨\n\n"
-                    f"📱 លេខទូរស័ព្ទ : {phone}\n"
-                    f"🚗 លេខផ្លាក : {plate}\n"
-                    "📍 ទីតាំង : លាងរថយន្ត Speed Car Wash BVM PAC\n\n"
-                    "សូមមកយករថយន្តរបស់អ្នក។ សូមអរណុសម្រាប់ការង់ចាំ\n\n"
-                    "✨ *Your car is ready!* ✨\n\n"
-                    f"📱 Phone : {phone}\n"
-                    f"🚗 Plate : {plate}\n"
-                    "📍 Location : Speed Car Wash BVM PAC\n\n"
-                    "Please come pick up your vehicle."
+                f"✨ *ជំរាបសួរ! រថយន្តរបស់លោកអ្នកត្រូវបានលាងសំអាតរួចរាល់ហើយ។ !* ✨\n\n"
+                f"📱 លេខទូរស័ព្ទ : {phone}\n"
+                f"🚗 លេខផ្លាក : {plate}\n\n"
+                "សូមអរគុណសម្រាប់ការរង់ចាំ និងការជឿទុកចិត្តលើសេវាកម្មរបស់យើងខ្ញុំ។ 🚗✨\n\n"
+                "✨ *Dear valued customer! Your car has been washed and is now ready.* ✨\n\n"
+                f"📱 Phone : {phone}\n"
+                f"🚗 Plate : {plate}\n\n"
+                "Thank you for your patience and trust in our service."
                 ),
+                parse_mode='Markdown'
+            )
+            admin_message = (
+                f"✨ *ជំរាបសួរ! រថយន្តរបស់លោកអ្នកត្រូវបានលាងសំអាតរួចរាល់ហើយ។ !* ✨\n\n"
+                f"📱 លេខទូរស័ព្ទ : {phone}\n"
+                f"🚗 លេខផ្លាក : {plate}\n\n"
+                "សូមអរគុណសម្រាប់ការរង់ចាំ និងការជឿទុកចិត្តលើសេវាកម្មរបស់យើងខ្ញុំ។ 🚗✨\n\n"
+                "✨ *Dear valued customer! Your car has been washed and is now ready.* ✨\n\n"
+                f"📱 Phone : {phone}\n"
+                f"🚗 Plate : {plate}\n\n"
+                "Thank you for your patience and trust in our service."
+            )
+            await context.bot.send_message(
+                chat_id=customer_data["admin_chat"],
+                text=admin_message,
                 parse_mode='Markdown'
             )
             
             await query.edit_message_text(
-                f"អតិថិជនត្រូវបានជូនដំណឹងសម្រាប់រួចរាល់: ✅\n\n"
+                f"បានជូនដំណឹងអតិថិជនដោយជោគជ័យថារថយន្តរួចរាល់ ✅\n\n"
                 f"📱 លេខទូរស័ព្ទ : {phone}\n"
                 f"🚗 លេខផ្លាក : {plate}\n\n"
-                f"Customer notified for ready: ✅\n\n"
+                f"Successfully notified customer that car is ready ✅\n\n"
                 f"📱 Phone : {phone}\n"
                 f"🚗 Plate : {plate}\n\n"
             )
@@ -351,12 +358,12 @@ async def status(update: Update, context: ContextTypes.DEFAULT_TYPE):
         status_message += (
             f"📱 *លេខទូរស័ព្ទ :* {phone}\n"
             f"🚗 *លេខផ្លាក :* {data.get('plate', 'មិនមាន')}\n"
-            f"• *ស្ថានភាព :* {data.get('status', 'មិនស្គាល់')}\n"
-            f"• *អតិថិជន :* {'បានចុះឈ្មោះ' if data['customer_chat'] else 'កំពុងរង់ចាំ'}\n\n"
+            f"⏳ *ស្ថានភាព :* {data.get('status', 'មិនស្គាល់')}\n"
+            f"👨‍🔧 *អតិថិជន :* {'បានចុះឈ្មោះ' if data['customer_chat'] else 'កំពុងរង់ចាំ'}\n\n"
             f"📱 *Phone :* {phone}\n"
             f"🚗 *Plate :* {data.get('plate', 'Not provided')}\n"
-            f"• *Status :* {data.get('status', 'unknown')}\n"
-            f"• *Customer:* {'registered' if data['customer_chat'] else 'pending'}\n\n"
+            f"⏳ *Status :* {data.get('status', 'unknown')}\n"
+            f"👨‍🔧 *Customer:* {'registered' if data['customer_chat'] else 'pending'}\n\n"
         )
     
     await update.message.reply_text(status_message, parse_mode='Markdown')
@@ -411,7 +418,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 def main():
-    app = ApplicationBuilder().token("7770857293:AAH76dLyyM-_5hCeuCJ2pLyhKCH_FN-pQ8k").build()
+    app = ApplicationBuilder().token("7542010152:AAHNUnrAXmOgXt3SG6pJVSzU6ArMMurzquw").build()
 
     # Conversation handlers
     reg_conv_handler = ConversationHandler(
