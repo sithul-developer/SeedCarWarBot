@@ -38,13 +38,11 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "ពាក្យបញ្ជាដែលអាចប្រើបាន:\n"
             "/register - ចុះឈ្មោះអតិថិជនថ្មី\n"
             "/ready - ជូនដំណឹងទៅអតិថិជនថារថយន្តរួចរាល់\n" 
-            "/status - ពិនិត្យមើលការចុះឈ្មោះបច្ចុប្បន្ន\n"
             "/cancel - បោះបង់ប្រតិបត្តិការបច្ចុប្បន្ន\n\n"
         
             "Available commands :\n"
             "/register - Register a new customer\n"
             "/ready - Notify customer their car is ready\n"
-            "/status - Check current registrations\n"
             "/cancel - Cancel the current operation",
             parse_mode='Markdown'
         )
@@ -338,7 +336,8 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
 
 
-async def status(update: Update, context: ContextTypes.DEFAULT_TYPE):
+""" async def status(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # Check if user is authorized
     if update.effective_user.id not in ADMIN_IDS:
         await update.message.reply_text(
             "❌ អ្នកមិនមានសិទ្ធិប្រើបញ្ជានេះទេ។\n"
@@ -346,6 +345,7 @@ async def status(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
     
+    # Check if registry is empty
     if not customer_registry:
         await update.message.reply_text(
             "ℹ️ គ្មានអតិថិជនណាត្រូវបានចុះឈ្មោះនៅពេលបច្ចុប្បន្នទេ។\n"
@@ -353,21 +353,33 @@ async def status(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
     
-    status_message = "*បច្ចុប្បន្នការចុះឈ្មោះរួច​រាល់​ ✅*\nCurrent Registrations ✅*\n\n"
+    # Build status message
+    status_message = (
+        "*បច្ចុប្បន្នការចុះឈ្មោះរួចរាល់ ✅*\n"
+        "*Current Registrations ✅*\n\n"
+    )
+    
     for phone, data in customer_registry.items():
         status_message += (
             f"📱 *លេខទូរស័ព្ទ :* {phone}\n"
             f"🚗 *លេខផ្លាក :* {data.get('plate', 'មិនមាន')}\n"
             f"⏳ *ស្ថានភាព :* {data.get('status', 'មិនស្គាល់')}\n"
-            f"👨‍🔧 *អតិថិជន :* {'បានចុះឈ្មោះ' if data['customer_chat'] else 'កំពុងរង់ចាំ'}\n\n"
+            f"👨‍🔧 *អតិថិជន :* {'បានចុះឈ្មោះ' if data.get('customer_chat', False) else 'កំពុងរង់ចាំ'}\n\n"
             f"📱 *Phone :* {phone}\n"
             f"🚗 *Plate :* {data.get('plate', 'Not provided')}\n"
             f"⏳ *Status :* {data.get('status', 'unknown')}\n"
-            f"👨‍🔧 *Customer:* {'registered' if data['customer_chat'] else 'pending'}\n\n"
+            f"👨‍🔧 *Customer:* {'registered' if data.get('customer_chat', False) else 'pending'}\n\n"
         )
     
-    await update.message.reply_text(status_message, parse_mode='Markdown')
-
+    # Send the message based on update type
+    try:
+        if update.message:
+            await update.message.reply_text(status_message, parse_mode='Markdown')
+        elif update.callback_query and update.callback_query.message:
+            await update.callback_query.message.reply_text(status_message, parse_mode='Markdown')
+    except Exception as e:
+        print(f"Error sending status message: {e}")
+ """
 
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
@@ -384,7 +396,6 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "*Admin Commands:*\n"
             "/register - Register a new customer\n"
             "/ready - Notify customer their car is ready\n"
-            "/status - Check current registrations\n"
             "/cancel - Cancel current operation\n\n"
             "*Customer Commands:*\n"
             "/start - Begin registration process\n\n"
@@ -394,7 +405,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "ពាក្យបញ្ជាសម្រាប់អ្នកគ្រប់គ្រង៖\n"
             "/register - ចុះឈ្មោះអតិថិជនថ្មី\n"
             "/ready - ជូនដំណឹងអតិថិជនថារថយន្តរួចរាល់\n"
-            "/status - ពិនិត្យមើលការចុះឈ្មោះបច្ចុប្បន្ន\n"
+    
             "/cancel - បោះបង់ប្រតិបត្តិការបច្ចុប្បន្ន\n\n"
             "ពាក្យបញ្ជាសម្រាប់អតិថិជន៖\n"
             "/start - ចាប់ផ្តើមដំណើរការចុះឈ្មោះ"
@@ -442,7 +453,6 @@ def main():
     app.add_handler(reg_conv_handler)
     app.add_handler(customer_conv_handler)
     app.add_handler(CommandHandler('ready', ready))
-    app.add_handler(CommandHandler('status', status))
     app.add_handler(CallbackQueryHandler(button_handler))
     app.add_handler(CommandHandler('help', help_command))
     print("🚗 Speed Car Wash bot is running...")
