@@ -11,9 +11,13 @@ from telegram.ext import (
     ConversationHandler
 )
 import re
-
+import json
+import os
 # Constants
-ADMIN_IDS = [5742761331]  # Replace with your Telegram ID
+
+ADMIN_FILE = "admins.json"  # File to store admin IDs
+GROUP_FILE = "group_id.json"
+DEFAULT_ADMINS = [5742761331,509847275]  # Your initial admin ID
 GROUP_ID = -4813155053
 PHONE_REGEX = re.compile(r'^\+?[0-9\s\-]{8,15}$')
 PLATE_REGEX = re.compile(r'^[A-Z0-9-]{3,10}$')
@@ -22,17 +26,14 @@ WAITING_PHONE, WAITING_PLATE, WAITING_CUSTOMER = range(3)
 # Database
 customer_registry = {}  # Format: {phone_number: {"admin_chat": int, "customer_chat": int, "status": str, "plate": str}}
 # Helper functions
-def clean_phone_number(phone: str) -> str:
-
-    """Normalize phone number by removing all non-digit characters"""
-    return ''.join(c for c in phone if c.isdigit())
+# (clean_phone_number is already defined above, so this duplicate can be removed)
 
 
 # Command handlers
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     
-    if user_id in ADMIN_IDS:
+    if user_id in admins:
         await update.message.reply_text(
             "👨‍🔧 *Admin Panel - Speed Car Wash*\n\n"
             "ពាក្យបញ្ជាដែលអាចប្រើបាន:\n"
@@ -99,7 +100,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return WAITING_CUSTOMER
 
 async def register(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.effective_user.id not in ADMIN_IDS:
+    if update.effective_user.id not in admins:
         await update.message.reply_text(
             "❌ អ្នកមិនមានសិទ្ធិប្រើបញ្ជានេះទេ។\n"
             "❌ You are not authorized to use this command."
@@ -250,7 +251,7 @@ async def receive_customer_phone(update: Update, context: ContextTypes.DEFAULT_T
 
 
 async def ready(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.effective_user.id not in ADMIN_IDS:
+    if update.effective_user.id not in admins:
         await update.message.reply_text(
             "❌ អ្នកមិនមានសិទ្ធិប្រើបញ្ជានេះទេ។\n"
             "❌ You are not authorized to use this command."
@@ -380,6 +381,197 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         print(f"Error sending status message: {e}")
  """
+# Admin management functions
+def load_admins():
+    """Load admin IDs from file or create with default if not exists"""
+    if os.path.exists(ADMIN_FILE):
+        try:
+            with open(ADMIN_FILE, 'r', encoding='utf-8') as f:
+                content = f.read().strip()
+                if not content:
+                    raise ValueError("Admin file is empty")
+                data = json.loads(content)
+            if isinstance(data, list):
+                return data
+            else:
+                # If the file is corrupted or not a list, reset to default
+                raise ValueError("Admin file is not a list")
+        except (json.JSONDecodeError, ValueError, IOError, TypeError):
+            # Remove the corrupted file so it can be recreated
+            try:
+                os.remove(ADMIN_FILE)
+            except Exception:
+                pass  # Ignore errors during file removal
+
+    # Create file with default admins if doesn't exist or is invalid
+    try:
+        with open(ADMIN_FILE, 'w', encoding='utf-8') as f:
+            json.dump(DEFAULT_ADMINS, f)
+    except Exception as e:
+        print(f"Error writing admin file: {e}")
+    return DEFAULT_ADMINS
+
+def save_admins(admin_list):
+    """Save admin IDs to file"""
+    with open(ADMIN_FILE, 'w') as f:
+        json.dump(admin_list, f)
+
+# Initialize admins
+admins = load_admins()
+
+# Helper functions
+def clean_phone_number(phone: str) -> str:
+    """Normalize phone number by removing all non-digit characters"""
+    return ''.join(c for c in phone if c.isdigit())
+
+# Admin management commands
+async def add_admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Add one or multiple admins at once"""
+    if update.effective_user.id not in admins:
+        await update.message.reply_text("❌ You are not authorized!")
+        return
+
+    if not context.args:
+        await update.message.reply_text(
+            "Usage:\n"
+            "• Add single admin: `/addadmin 123456789`\n"
+            "• Add multiple admins: `/addadmin 123456789 987654321 555555555`"
+        )
+        return
+
+    new_admins = []
+    invalid_ids = []
+    already_admins = []
+
+    for arg in context.args:
+        try:
+            user_id = int(arg)
+            if user_id in admins:
+                already_admins.append(str(user_id))
+            else:
+                new_admins.append(user_id)
+        except ValueError:
+            invalid_ids.append(arg)
+
+    # Process valid new admins
+    if new_admins:
+        admins.extend(new_admins)
+        save_admins(admins)
+        new_admins_str = ", ".join(str(id) for id in new_admins)
+        response = f"✅ Added new admins: {new_admins_str}\n"
+    else:
+        response = ""
+
+    # Add warnings for invalid/duplicate IDs
+    if invalid_ids:
+        invalid_str = ", ".join(invalid_ids)
+        response += f"❌ Invalid IDs (must be numbers): {invalid_str}\n"
+
+    if already_admins:
+        existing_str = ", ".join(already_admins)
+        response += f"⚠️ Already admins: {existing_str}"
+
+    await update.message.reply_text(response or "No valid admin IDs provided.")
+
+async def remove_admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Remove an admin"""
+    if update.effective_user.id not in admins:
+        await update.message.reply_text("❌ You are not authorized!")
+        return
+
+    if not context.args:
+        await update.message.reply_text("Usage: /removeadmin <user_id>")
+        return
+
+    try:
+        admin_to_remove = int(context.args[0])
+        if admin_to_remove in admins:
+            admins.remove(admin_to_remove)
+            save_admins(admins)
+            await update.message.reply_text(f"✅ Removed admin {admin_to_remove}")
+        else:
+            await update.message.reply_text("⚠️ User is not an admin")
+    except ValueError:
+        await update.message.reply_text("❌ Invalid user ID")
+
+async def list_admins(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """List all admins"""
+    if update.effective_user.id not in admins:
+        await update.message.reply_text("❌ You are not authorized!")
+        return
+
+    admin_list = "\n".join(str(admin) for admin in admins)
+    await update.message.reply_text(f"👑 Admins:\n{admin_list}")
+
+def load_group_id():
+    """Load group ID from file or return None if not set"""
+    try:
+        if os.path.exists(GROUP_FILE):
+            with open(GROUP_FILE, 'r', encoding='utf-8') as f:
+                content = f.read().strip()
+                if not content:
+                    return None
+                try:
+                    data = json.loads(content)
+                except json.JSONDecodeError:
+                    return None
+                # Accept int, string, or dict with 'group_id'
+                if isinstance(data, int):
+                    return data
+                elif isinstance(data, str):
+                    try:
+                        return int(data)
+                    except ValueError:
+                        return None
+                elif isinstance(data, dict) and "group_id" in data:
+                    try:
+                        return int(data["group_id"])
+                    except (ValueError, TypeError):
+                        return None
+                else:
+                    # If the file is corrupted or not a valid group id, reset to None
+                    return None
+    except (json.JSONDecodeError, IOError):
+        pass
+    return None
+
+def save_group_id(group_id):
+    """Save group ID to file"""
+    with open(GROUP_FILE, 'w', encoding='utf-8') as f:
+        json.dump(group_id, f)
+
+# Initialize group_id
+group_id = load_group_id() or GROUP_ID  # Fallback to original GROUP_ID if not set
+async def set_group(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Set the notification group ID"""
+    if update.effective_user.id not in admins:
+        await update.message.reply_text("❌ You are not authorized!")
+        return
+
+    if not context.args:
+        await update.message.reply_text(
+            "Usage: /setgroup <group_id>\n"
+            "Example: /setgroup -1001234567890\n\n"
+            "Current group ID: {group_id}"
+        )
+        return
+
+    try:
+        global group_id
+        new_group_id = int(context.args[0])
+        save_group_id(new_group_id)
+        group_id = new_group_id
+        await update.message.reply_text(f"✅ Notification group set to: {new_group_id}")
+    except ValueError:
+        await update.message.reply_text("❌ Group ID must be an integer (include the - for supergroups)")
+
+async def show_group(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Show current notification group ID"""
+    if update.effective_user.id not in admins:
+        await update.message.reply_text("❌ You are not authorized!")
+        return
+
+    await update.message.reply_text(f"Current notification group ID: {group_id}")
 
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
@@ -390,7 +582,7 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # Add this handler function with the other command handlers
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
-    if user_id in ADMIN_IDS:
+    if user_id in admins:
         help_text = (
             "🛠 *Speed Car Wash Bot Help* 🛠\n\n"
             "*Admin Commands:*\n"
@@ -426,10 +618,8 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     await update.message.reply_text(help_text, parse_mode='Markdown')
 
-
-
 def main():
-    app = ApplicationBuilder().token("7542010152:AAHNUnrAXmOgXt3SG6pJVSzU6ArMMurzquw").build()
+    app = ApplicationBuilder().token("7542010152:AAHNUnrAXmOgXt3SG6pJVSzU6ArMMurzquw").build() #chat id on production #7542010152:AAHNUnrAXmOgXt3SG6pJVSzU6ArMMurzquw
 
     # Conversation handlers
     reg_conv_handler = ConversationHandler(
@@ -455,6 +645,11 @@ def main():
     app.add_handler(CommandHandler('ready', ready))
     app.add_handler(CallbackQueryHandler(button_handler))
     app.add_handler(CommandHandler('help', help_command))
+    app.add_handler(CommandHandler('addadmin', add_admin))
+    app.add_handler(CommandHandler('removeadmin', remove_admin))
+    app.add_handler(CommandHandler('listadmins', list_admins))
+    app.add_handler(CommandHandler('setgroup', set_group))
+    app.add_handler(CommandHandler('showgroup', show_group))
     print("🚗 Speed Car Wash bot is running...")
     app.run_polling()
 
