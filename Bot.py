@@ -305,29 +305,17 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 ),
                 parse_mode='Markdown'
             )
-            admin_message = (
-                f"✨ *ជំរាបសួរ! រថយន្តរបស់លោកអ្នកត្រូវបានលាងសំអាតរួចរាល់ហើយ។ !* ✨\n\n"
-                f"📱 លេខទូរស័ព្ទ : {phone}\n"
-                f"🚗 លេខផ្លាក : {plate}\n\n"
-                "សូមអរគុណសម្រាប់ការរង់ចាំ និងការជឿទុកចិត្តលើសេវាកម្មរបស់យើងខ្ញុំ។ 🚗✨\n\n"
-                "✨ *Dear valued customer! Your car has been washed and is now ready.* ✨\n\n"
-                f"📱 Phone : {phone}\n"
-                f"🚗 Plate : {plate}\n\n"
-                "Thank you for your patience and trust in our service."
-            )
             await context.bot.send_message(
                 chat_id=customer_data["admin_chat"],
-                text=admin_message,
-                parse_mode='Markdown'
-            )
-            
-            await query.edit_message_text(
-                f"បានជូនដំណឹងអតិថិជនដោយជោគជ័យថារថយន្តរួចរាល់ ✅\n\n"
+                text=(
+                f"✅ បានជូនដំណឹងអតិថិជនដោយជោគជ័យថារថយន្តរួចរាល់\n\n"
                 f"📱 លេខទូរស័ព្ទ : {phone}\n"
                 f"🚗 លេខផ្លាក : {plate}\n\n"
-                f"Successfully notified customer that car is ready ✅\n\n"
+                f"✅ Successfully notified customer that car is ready\n\n"
                 f"📱 Phone : {phone}\n"
                 f"🚗 Plate : {plate}\n\n"
+                ),
+                parse_mode='Markdown'
             )
             customer_registry[phone]["status"] = "ready"
         else:
