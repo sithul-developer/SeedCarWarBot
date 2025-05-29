@@ -14,7 +14,9 @@ import re
 import json
 import os
 from datetime import datetime
-
+from dotenv import load_dotenv
+load_dotenv()  # Load environment variables from .env file if present
+TOKEN = os.getenv('TELEGRAM_TOKEN') 
 # Constants
 ADMIN_FILE = "admins.json"  # File to store admin IDs
 GROUP_FILE = "group_id.json"
@@ -558,9 +560,7 @@ async def show_group(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(f"Current notification group ID: {group_id}")
 
 def main():
-    app = ApplicationBuilder().token("7770857293:AAFnv-XVnnwE9Qvcxh2gQ8FALwAq21OLJuM").build()
-
-    # Conversation handlers
+    app = ApplicationBuilder().token(TOKEN).build()
     reg_conv_handler = ConversationHandler(
         entry_points=[CommandHandler('register', register)],
         states={
