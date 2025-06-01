@@ -23,7 +23,7 @@ TOKEN = os.getenv('TELEGRAM_TOKEN')
 ADMIN_FILE = "admins.json"  # File to store admin IDs
 GROUP_FILE = "group_ids.json"
 DEFAULT_ADMINS = [5742761331]  # Your initial admin IDs 509847275
-DEFAULT_GROUPS = ["-1002559033240_1"]  # Default group ID for notifications
+DEFAULT_GROUPS = ["-1002210878700_33970"]  # Default group ID for notifications
 PLATE_REGEX = re.compile(r'^[A-Z0-9-]{3,10}$')
 # Conversation states
 WAITING_PLATE, WAITING_CUSTOMER = range(2)
@@ -389,6 +389,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 f"🚗 ផ្លាកលេខ : {customer_registry[queue_number].get('plate', 'មិនមាន')}\n"
                 f"👤 ឈ្មោះអតិថិជន : {update.effective_user.full_name}\n"
                 f"⏳ ស្ថានភាព៖ កំពុងរង់ចាំសេវាកម្ម\n\n"
+                
                 f"Customer has successfully registered through QR Code\n\n"
                 f"🛂 Ticket number# : {queue_number}\n"
                 f"🚗 Plate : {customer_registry[queue_number].get('plate', 'Not provided')}\n"
@@ -401,6 +402,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 text=admin_message,
                 parse_mode='Markdown'
             )
+
 
             # Send to all group_ids if available, else fallback to DEFAULT_GROUPS
             target_groups = group_ids if group_ids else DEFAULT_GROUPS
@@ -588,7 +590,7 @@ async def receive_plate(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 admin_chat = admins[0]
                 customer_registry[queue_number]["admin_chat"] = admin_chat
         group_message = (
-            f"*អតិថិជនបានចុះឈ្មោះដោយខ្លួនឯងដោយជោគជ័យ*\n\n"
+            f"អតិថិជនបានចុះឈ្មោះដោយខ្លួនឯងដោយជោគជ័យ\n\n"
             f"🛂 លេខសំបុត្រ# : {queue_number}\n"
             f"🚗 ផ្លាកលេខ : {plate}\n"
             f"👤 ឈ្មោះអតិថិជន : {update.effective_user.full_name}\n"
@@ -824,13 +826,11 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                                 f"ការលាងសំអាតរថយន្តអតិថិជនត្រូវបានបញ្ចប់ដោយជោគជ័យ។\n\n"
                                 f"🛂 លេខសំបុត្រ# : {queue_number}\n"
                                 f"🚗 ផ្លាកលេខ : {plate}\n"
-                                f"👤 ឈ្មោះបុគ្គលិក : {staff_name}\n"
-                                f"⏱️ ពេលវេលា : {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+                                f"👤 ឈ្មោះបុគ្គលិក : {staff_name}\n\n"
                                 f"The customer's car wash has been successfully completed.\n\n"
                                 f"🛂 Ticket # : {queue_number}\n"
                                 f"🚗 Plate : {plate}\n"
                                 f"👤 Staff Name : {staff_name}\n"
-                                f"⏱️ Time : {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
                             ),
                             parse_mode='Markdown'
                         )
@@ -892,7 +892,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(help_text, parse_mode='Markdown')
 # Main function to set up the bot and handlers
 def main():
-    app = ApplicationBuilder().token("7631085937:AAHIEiBenB536NSfSbNbZkAZ5cAEgBgruYk").build()
+    app = ApplicationBuilder().token(TOKEN).build()
 
     reg_conv_handler = ConversationHandler(
         entry_points=[CommandHandler('register', register)],
