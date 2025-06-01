@@ -910,7 +910,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(help_text, parse_mode='Markdown')
 # Main function to set up the bot and handlers
 def main():
-    app = ApplicationBuilder().token("TOKEN").build()
+    app = ApplicationBuilder().token(TOKEN).build()
 
     reg_conv_handler = ConversationHandler(
         entry_points=[CommandHandler('register', register)],
