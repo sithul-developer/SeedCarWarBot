@@ -17,19 +17,23 @@ import time
 import threading
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
+
 load_dotenv()  # Load environment variables from .env file if present
 TOKEN = os.getenv('TELEGRAM_TOKEN') 
+
 # Constants
 ADMIN_FILE = "admins.json"  # File to store admin IDs
-GROUP_FILE = "group_ids.json"
-DEFAULT_ADMINS = [5742761331]  # Your initial admin IDs 509847275
-DEFAULT_GROUPS = ["-1002210878700_33970"]  # Default group ID for notifications
+DEFAULT_ADMINS = [5742761331]  # Your initial admin IDs
+DEFAULT_SUBGROUP_ID = -1002210878700
+MESSAGE_THREAD_ID = 33970
 PLATE_REGEX = re.compile(r'^[A-Z0-9-]{3,10}$')
+
 # Conversation states
 WAITING_PLATE, WAITING_CUSTOMER = range(2)
 
 customer_registry = {}  # Dictionary to store customer data
 queue_counter = 1  # Initialize queue counter
+
 def clean_old_entries():
     """Remove entries older than 7 days"""
     global customer_registry
@@ -49,16 +53,18 @@ def clean_old_entries():
     
     if to_delete:
         print(f"Cleaned up {len(to_delete)} old entries from customer registry")
+
 def scheduled_cleanup():
     """Run cleanup every 24 hours"""
     while True:
         clean_old_entries()
         time.sleep(24 * 60 * 60)  # Sleep for 24 hours
+
 # Start the cleanup thread when your application starts
 cleanup_thread = threading.Thread(target=scheduled_cleanup)
 cleanup_thread.daemon = True
 cleanup_thread.start()
-# Start the cleanup thread when your application starts
+
 def generate_queue_number():
     """Generate a unique queue number with date prefix"""
     global queue_counter
@@ -73,7 +79,7 @@ def generate_queue_number():
     }
     
     return queue_number
-# Load admin IDs from file or create with default if not exists
+
 def load_admins():
     """Load admin IDs from file or create with default if not exists"""
     if os.path.exists(ADMIN_FILE):
@@ -98,12 +104,12 @@ def load_admins():
     except Exception as e:
         print(f"Error writing admin file: {e}")
     return DEFAULT_ADMINS
-# Save admin IDs to file
+
 def save_admins(admin_list):
     """Save admin IDs to file"""
     with open(ADMIN_FILE, 'w', encoding='utf-8') as f:
         json.dump(admin_list, f)
-# Admin management commands (unchanged from your original code)
+
 async def add_admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Add one or multiple admins at once"""
     if update.effective_user.id not in admins:
@@ -149,7 +155,7 @@ async def add_admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
         response += f"⚠️ Already admins: {existing_str}"
 
     await update.message.reply_text(response or "No valid admin IDs provided.")
-# Remove an admin
+
 async def remove_admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Remove an admin"""
     if update.effective_user.id not in admins:
@@ -187,174 +193,24 @@ async def remove_admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
         response += f"⚠️ Not admins: {', '.join(not_admins)}"
 
     await update.message.reply_text(response or "No valid admin IDs provided.")
-# List all admin user IDs
+
 async def list_admins(update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """List all admin user IDs"""
-        if update.effective_user.id not in admins:
-            await update.message.reply_text("❌ You are not authorized!")
-            return
-        if not admins:
-            await update.message.reply_text("No admins are currently set.")
-        else:
-            await update.message.reply_text(
-                "Current admins:\n" +
-                "\n".join(f"• {admin_id}" for admin_id in admins)
-            )
-# Load group ID from file or return None if not set
-def load_group_id():
-    """Load group ID from file or return None if not set"""
-    try:
-        if os.path.exists(GROUP_FILE):
-            with open(GROUP_FILE, 'r', encoding='utf-8') as f:
-                content = f.read().strip()
-                if not content:
-                    return None
-                try:
-                    data = json.loads(content)
-                except json.JSONDecodeError:
-                    return None
-                if isinstance(data, int):
-                    return data
-                elif isinstance(data, str):
-                    try:
-                        return int(data)
-                    except ValueError:
-                        return None
-                elif isinstance(data, dict) and "group_id" in data:
-                    try:
-                        return int(data["group_id"])
-                    except (ValueError, TypeError):
-                        return None
-                else:
-                    return None
-    except (json.JSONDecodeError, IOError):
-        pass
-    return None
-# Save group ID to file
-def save_group_id(group_id):
-    """Save group ID to file"""
-    with open(GROUP_FILE, 'w', encoding='utf-8') as f:
-        json.dump(group_id, f)
-admins = load_admins()
-group_id = load_group_id() or DEFAULT_GROUPS[0] 
-# List to store multiple group IDs, loaded from file
-def load_group_ids():
-    """Load group IDs from persistent storage"""
-    try:
-        if os.path.exists(GROUP_FILE):
-            with open(GROUP_FILE, 'r', encoding='utf-8') as f:
-                content = f.read().strip()
-                if not content:
-                    return []
-                data = json.loads(content)
-                if isinstance(data, list):
-                    return data
-                elif isinstance(data, (int, str)):
-                    return [int(data)]
-                else:
-                    return []
-    except (json.JSONDecodeError, IOError, ValueError, TypeError):
-        pass
-    return []
-group_ids = load_group_ids()  # List to store multiple group IDs, loaded from file
-# Define the main application
-def save_group_ids(group_ids):
-    """Save group IDs to persistent storage"""
-    with open(GROUP_FILE, 'w', encoding='utf-8') as f:
-        json.dump(group_ids, f)
-
-async def addgroups(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Add one or more notification group IDs"""
-    global group_ids
-
+    """List all admin user IDs"""
     if update.effective_user.id not in admins:
         await update.message.reply_text("❌ You are not authorized!")
         return
-
-    if not context.args:
-        await update.message.reply_text(
-            "Usage: /addgroups <group_id1> <group_id2> ...\n"
-            "Example: /addgroups -1001234567890 -1009876543210\n\n"
-            f"Current groups: {', '.join(map(str, group_ids)) if group_ids else 'None'}"
-        )
-        return
-
-    added_groups = []
-    already_exists = []
-    invalid = []
-
-    for arg in context.args:
-        try:
-            new_group_id = int(arg)
-            if new_group_id in group_ids:
-                already_exists.append(str(new_group_id))
-            else:
-                group_ids.append(new_group_id)
-                added_groups.append(str(new_group_id))
-        except ValueError:
-            invalid.append(arg)
-
-    save_group_ids(group_ids)
-
-    response = []
-    if added_groups:
-        response.append(f"✅ Added groups: {', '.join(added_groups)}")
-    if already_exists:
-        response.append(f"ℹ️ Already exists: {', '.join(already_exists)}")
-    if invalid:
-        response.append(f"❌ Invalid IDs (must be integers): {', '.join(invalid)}")
-
-    await update.message.reply_text("\n".join(response))
-# List all notification group IDs
-async def listgroups(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """List all notification group IDs"""
-    if update.effective_user.id not in admins:
-        await update.message.reply_text("❌ You are not authorized!")
-        return
-
-    if not group_ids:
-        await update.message.reply_text("No notification groups are currently set.")
+    if not admins:
+        await update.message.reply_text("No admins are currently set.")
     else:
         await update.message.reply_text(
-            "Current notification groups:\n" +
-            "\n".join(f"• {gid}" for gid in group_ids)
+            "Current admins:\n" +
+            "\n".join(f"• {admin_id}" for admin_id in admins)
         )
-# Remove a notification group ID
-async def removegroup(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Remove a notification group ID"""
-    global group_ids
 
-    if update.effective_user.id not in admins:
-        await update.message.reply_text("❌ You are not authorized!")
-        return
+admins = load_admins()
 
-    if not context.args:
-        await update.message.reply_text(
-            "Usage: /removegroup <group_id>\n"
-            "Example: /removegroup -1001234567890\n\n"
-            f"Current groups: {', '.join(map(str, group_ids)) if group_ids else 'None'}"
-        )
-        return
-
-    try:
-        group_to_remove = int(context.args[0])
-        if group_to_remove in group_ids:
-            group_ids.remove(group_to_remove)
-            save_group_ids(group_ids)
-            await update.message.reply_text(f"✅ Removed group: {group_to_remove}")
-        else:
-            await update.message.reply_text(f"❌ Group ID {group_to_remove} not found in the list.")
-    except ValueError:
-        await update.message.reply_text("❌ Group ID must be an integer (include the - for supergroups)")
-# Save group IDs to persistent storage
-def save_group_ids(group_ids):
-    """Save group IDs to persistent storage"""
-    with open(GROUP_FILE, 'w', encoding='utf-8') as f:
-        json.dump(group_ids, f)
-# Start the bot and define command handlers
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
-    GROUP_CHAT_ID = group_ids[0] if group_ids else DEFAULT_GROUPS[0]  # Use group_ids if set, else fallback
     
     if user_id in admins:
         await update.message.reply_text(
@@ -390,6 +246,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 f"👤 ឈ្មោះអតិថិជន : {update.effective_user.full_name}\n"
                 f"⏳ ស្ថានភាព៖ កំពុងរង់ចាំសេវាកម្ម\n\n"
                 
+                
                 f"Customer has successfully registered through QR Code\n\n"
                 f"🛂 Ticket number# : {queue_number}\n"
                 f"🚗 Plate : {customer_registry[queue_number].get('plate', 'Not provided')}\n"
@@ -402,19 +259,32 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 text=admin_message,
                 parse_mode='Markdown'
             )
-
-
-            # Send to all group_ids if available, else fallback to DEFAULT_GROUPS
-            target_groups = group_ids if group_ids else DEFAULT_GROUPS
-            for gid in target_groups:
+      
+            # Message to subgroup (in the specified thread)
+            if DEFAULT_SUBGROUP_ID and MESSAGE_THREAD_ID:
                 try:
                     await context.bot.send_message(
-                        chat_id=gid,
-                        text=admin_message,
+                        chat_id=DEFAULT_SUBGROUP_ID,
+                        message_thread_id=MESSAGE_THREAD_ID,
+                        text=(
+                             f"អតិថិជនបានចុះឈ្មោះតាមរយៈ QR Code ដោយជោគជ័យ\n\n"
+                            f"🛂 លេខសំបុត្រ# : {queue_number}\n"
+                            f"🚗 ផ្លាកលេខ : {customer_registry[queue_number].get('plate', 'មិនមាន')}\n"
+                            f"👤 ឈ្មោះអតិថិជន : {update.effective_user.full_name}\n"
+                            f"⏳ ស្ថានភាព៖ កំពុងរង់ចាំសេវាកម្ម\n"
+                            f"⏰ ពេលវេលា: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+                            f"Customer has successfully registered through QR Code\n\n"
+                            f"🛂 Ticket number# : {queue_number}\n"
+                            f"🚗 Plate : {customer_registry[queue_number].get('plate', 'Not provided')}\n"
+                            f"👤 Customer Name : {update.effective_user.full_name}\n"
+                            f"⏳ Status : Waiting for service\n"
+                            f"⏰ Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+                        ),
                         parse_mode='Markdown'
                     )
                 except Exception as e:
-                    print(f"Failed to send message to group {gid}: {e}")
+                    print(f"Error sending registration notification to subgroup: {e}"),
+                            
 
             await update.message.reply_text(
                 f"ការចុះឈ្មោះអតិថិជនបានដោយជោគជ័យ!\n\n"
@@ -455,7 +325,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 parse_mode='Markdown'
             )
             return WAITING_PLATE
-# Register command handler
+
 async def register(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id not in admins:
         await update.message.reply_text(
@@ -470,7 +340,7 @@ async def register(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "Type /cancel to abort."
     )
     return WAITING_PLATE
-# Register the conversation handler
+
 async def receive_plate(update: Update, context: ContextTypes.DEFAULT_TYPE):
     plate = update.message.text.strip().upper()
     if not PLATE_REGEX.match(plate):
@@ -501,7 +371,7 @@ async def receive_plate(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "customer_chat": None,
             "status": "registered",
             "plate": plate,
-            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "timestamp": datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
             "customer_name": update.effective_user.full_name
         }
         
@@ -538,25 +408,10 @@ async def receive_plate(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"{deep_link}"
         )
 
-        # Define group_message before sending to groups
-        group_message = (
-            f"*អតិថិជនថ្មីត្រូវបានចុះឈ្មោះដោយបុគ្គលិក*\n\n"
-            f"🛂 លេខសំបុត្រ# : {queue_number}\n"
-            f"🚗 ផ្លាកលេខ : {plate}\n"
-            f"👤 ឈ្មោះអតិថិជន : {update.effective_user.full_name}\n"
-            f"⏳ ស្ថានភាព៖ កំពុងរង់ចាំអតិថិជនបញ្ចូលតាម QR\n\n"
-            f"*A new customer has been registered by staff*\n\n"
-            f"🛂 Ticket Number : {queue_number}\n"
-            f"🚗 Plate : {plate}\n"
-            f"👤 Customer Name : {update.effective_user.full_name}\n"
-            f"⏳ Status : Waiting for customer to scan QR\n\n"
-        )
-
         await update.message.reply_photo(
             photo=bio,
             caption=caption
         )
-
      
     else:  # Customer self-registration flow
         queue_number = context.user_data.get('queue_number')
@@ -589,71 +444,55 @@ async def receive_plate(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 # If admin chat is not set, use the first admin
                 admin_chat = admins[0]
                 customer_registry[queue_number]["admin_chat"] = admin_chat
-        group_message = (
-            f"អតិថិជនបានចុះឈ្មោះដោយខ្លួនឯងដោយជោគជ័យ\n\n"
-            f"🛂 លេខសំបុត្រ# : {queue_number}\n"
-            f"🚗 ផ្លាកលេខ : {plate}\n"
-            f"👤 ឈ្មោះអតិថិជន : {update.effective_user.full_name}\n"
-            f"⏳ ស្ថានភាព៖ កំពុងរង់ចាំសេវាកម្ម\n\n"
-            f"*Customer has self-registered successfully*\n\n"
-            f"🛂 Ticket Number : {queue_number}\n"
-            f"🚗 Plate : {plate}\n"
-            f"👤 Customer Name : {update.effective_user.full_name}\n"
-            f"⏳ Status : Waiting for service\n\n"
-        )
-        # Notify Groups
-        if DEFAULT_GROUPS:
-            for group_id in DEFAULT_GROUPS:
-                try:
-                    await context.bot.send_message(
-                        chat_id=group_id,
-                        text= group_message,
-                        parse_mode='Markdown'
-                    )
-                except Exception as e:
-                    print(f"Failed to send message to group {group_id}: {e}")
-
-        
-
-        # Send to admin if available, otherwise to all groups
-        if admins:
-            admin_chat_id = admins[0]  # Primary admin
-            customer_registry[queue_number]["admin_chat"] = admin_chat_id
             
             try:
                 await context.bot.send_message(
-                    chat_id=admin_chat_id,
-                    text=group_message,
+                    chat_id=admin_chat,
+                    text=(
+                        f"អតិថិជនបានចុះឈ្មោះដោយខ្លួនឯងដោយជោគជ័យ\n\n"
+                        f"🛂 លេខសំបុត្រ# : {queue_number}\n"
+                        f"🚗 ផ្លាកលេខ : {plate}\n"
+                        f"👤 ឈ្មោះអតិថិជន : {update.effective_user.full_name}\n"
+                        f"⏳ ស្ថានភាព៖ កំពុងរង់ចាំសេវាកម្ម\n\n"
+                        f"*Customer has self-registered successfully*\n\n"
+                        f"🛂 Ticket Number : {queue_number}\n"
+                        f"🚗 Plate : {plate}\n"
+                        f"👤 Customer Name : {update.effective_user.full_name}\n"
+                        f"⏳ Status : Waiting for service\n\n"
+                    ),
                     parse_mode='Markdown'
                 )
-            except Exception as e:
-                print(f"Failed to notify admin {admin_chat_id}: {e}")
                 
-                # Fallback to groups if admin notification fails
-                if DEFAULT_GROUPS:
-                    for group_id in DEFAULT_GROUPS:
-                        try:
-                            await context.bot.send_message(
-                                chat_id=group_id,
-                                text=group_message,
-                                parse_mode='Markdown'
-                            )
-                        except Exception as e:
-                            print(f"Failed to send message to group {group_id}: {e}")
-        
-        elif DEFAULT_GROUPS:  # If no admins, send to all groups
-            for group_id in DEFAULT_GROUPS:
-                try:
-                    await context.bot.send_message(
-                        chat_id=group_id,
-                        text=group_message,
-                        parse_mode='Markdown'
+            except Exception as e:
+                print(f"Failed to notify admin {admin_chat}: {e}")
+        # Send notification to subgroup
+        if DEFAULT_SUBGROUP_ID and MESSAGE_THREAD_ID:
+             await context.bot.send_message(
+                    chat_id=DEFAULT_SUBGROUP_ID,
+                        message_thread_id=MESSAGE_THREAD_ID,
+                            text=(
+                                f"អតិថិជនបានចុះឈ្មោះដោយខ្លួនឯងដោយជោគជ័យ\n\n"
+                                f"🛂 លេខសំបុត្រ# : {queue_number}\n"
+                                f"🚗 ផ្លាកលេខ : {plate}\n"
+                                f"👤 ឈ្មោះអតិថិជន : {update.effective_user.full_name}\n"
+                                f"⏳ ស្ថានភាព៖ កំពុងរង់ចាំសេវាកម្ម\n"
+                                f"⏰ ពេលវេលា: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+
+                                f"Customer has self-registered successfully\n\n"
+                                f"🛂 Ticket Number: {queue_number}\n"
+                                f"🚗 Plate: {plate}\n"
+                                f"👤 Customer: {update.effective_user.full_name}\n"
+                                f"⏳ Status: Waiting for service\n"
+                                f"⏰ Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+                            ),
+                            parse_mode='Markdown'           
                     )
-                except Exception as e:
-                    print(f"Failed to send message to group {group_id}: {e}")
-    
+
+        # Update customer data
+        customer_registry[queue_number]["customer_chat"] = update.effective_user.id
+             
     return ConversationHandler.END
-# Ready command handler
+
 async def ready(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id not in admins:
         await update.message.reply_text(
@@ -684,33 +523,27 @@ async def ready(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "📢 Select customer to notify ( Ticket Number - Plate):", 
         reply_markup=InlineKeyboardMarkup(buttons)
     )
-# format_status
+
 def format_status(queue_number, data):
-    """Format status information for display"""
+    """Format status information for display with bilingual support"""
     status_mapping = {
-        "pending": "⏳ Pending registration",
-        "waiting": "🛠 In progress (waiting)",
-        "ready": "✅ Ready for pickup",
-        "registered": "📝 Registered (waiting for customer)"
+        "pending": ("⏳ Pending registration", "⏳ កំពុងរង់ចាំចុះឈ្មោះ"),
+        "waiting": ("🛠 In progress (waiting)", "🛠 កំពុងធ្វើការ (រង់ចាំ)"),
+        "ready": ("✅ Ready for pickup", "✅ រួចរាល់សម្រាប់ទទួល"),
+        "registered": ("📝 Registered (waiting for customer)", "📝 បានចុះឈ្មោះ (រង់ចាំអតិថិជន)")
     }
     
-    status_text = status_mapping.get(data.get("status", "pending"), data.get("status", "pending"))
+    status_en, status_kh = status_mapping.get(data.get("status", "pending"), (data.get("status", "pending"), data.get("status", "pending")))
     
     message = (
-        f"👑 *Admin View - Ticket Status* 👑\n\n"
-        f"👤 *ឈ្មោះអតិថិជន*: {data.get('customer_name', 'មិនមាន')}\n"
-        f"🛂 *លេខសំបុត្រ*: `{queue_number}`\n"
-        f"🚗 *ផ្លាកលេខ*: {data.get('plate', 'មិនមាន')}\n"
-        f"📊 *ស្ថានភាព*: {status_text}\n"
-        f"🕒 *ពេលវេលាចុះឈ្មោះ*: {data.get('timestamp', 'មិនស្គាល់')}\n\n"
-        
-        f"🛂 *Ticket Number*: `{queue_number}`\n"
-        f"🚗 *Plate*: {data.get('plate', 'Not provided')}\n"
-        f"📊 *Status*: {status_text}\n"
-        f"🕒 *Registered at*: {data.get('timestamp', 'Unknown')}\n\n"
+        f"👤 *ឈ្មោះអតិថិជន / Customer*: {data.get('customer_name', 'មិនមាន / None')}\n"
+        f"🛂 *លេខសំបុត្រ / Ticket*: `{queue_number}`\n"
+        f"🚗 *ផ្លាកលេខ / Plate*: {data.get('plate', 'មិនមាន / None')}\n"
+        f"📊 *ស្ថានភាព / Status*: {status_kh} / {status_en}\n"
+        f"🕒 *ពេលវេលាចុះឈ្មោះ / Registered*: {data.get('timestamp', 'មិនស្គាល់ / Unknown')}\n\n"
     )
     return message
-# Check status command handler
+
 async def check_status(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Check the status of a car wash registration"""
     user_id = update.effective_user.id
@@ -743,14 +576,20 @@ async def check_status(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if user_id in admins:
         # Admin sees all tickets
         relevant_tickets = customer_registry.items()
-        message = "👑 *Admin View - All Tickets* 👑\n\n"
+        header = (
+            "👑 *Admin View - All Tickets* 👑\n"
+            "👑 *ទិដ្ឋភាពអ្នកគ្រប់គ្រង - សំបុត្រទាំងអស់* 👑\n\n"
+        )
     else:
         # Customer sees only their tickets
         relevant_tickets = [
             (qn, data) for qn, data in customer_registry.items()
             if data.get("customer_chat") == user_id
         ]
-        message = "🚗 *Your Car Wash Tickets* 🚗\n\n"
+        header = (
+            "🚗 *Your Car Wash Tickets* 🚗\n"
+            "🚗 *សំបុត្រលាងរថយន្តរបស់អ្នក* 🚗\n\n"
+        )
     
     if not relevant_tickets:
         await update.message.reply_text(
@@ -759,17 +598,30 @@ async def check_status(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
     
-    for queue_number, data in relevant_tickets:
-        message += format_status(queue_number, data) + "\n\n"
+    # Prepare message parts
+    message_parts = [header]
     
-    # Split long messages to avoid Telegram's message length limit
-    if len(message) > 4000:
-        parts = [message[i:i+4000] for i in range(0, len(message), 4000)]
-        for part in parts:
-            await update.message.reply_text(part, parse_mode='Markdown')
-    else:
-        await update.message.reply_text(message, parse_mode='Markdown')
-# Button handler for ready notification
+    for queue_number, data in relevant_tickets:
+        status_text = format_status(queue_number, data)
+        if len('\n\n'.join(message_parts) + '\n\n' + status_text) > 4000:
+            # Send current parts if adding this would exceed limit
+            await update.message.reply_text(
+                '\n\n'.join(message_parts),
+                parse_mode='Markdown'
+            )
+            message_parts = [header]  # Start new message with header
+        
+        message_parts.append(status_text)
+    
+    # Send remaining messages
+    for i, part in enumerate(message_parts):
+        if i == 0 and len(message_parts) > 1:
+            continue  # Skip header if it's not the only part
+        await update.message.reply_text(
+            part,
+            parse_mode='Markdown'
+        )
+
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
@@ -816,26 +668,33 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 parse_mode='Markdown'
             )
             
-            # Message to all notification groups
-            if group_ids:
-                for gid in group_ids:
-                    try:
-                        await context.bot.send_message(
-                            chat_id=gid,
-                            text=(
-                                f"ការលាងសំអាតរថយន្តអតិថិជនត្រូវបានបញ្ចប់ដោយជោគជ័យ។\n\n"
-                                f"🛂 លេខសំបុត្រ# : {queue_number}\n"
-                                f"🚗 ផ្លាកលេខ : {plate}\n"
-                                f"👤 ឈ្មោះបុគ្គលិក : {staff_name}\n\n"
-                                f"The customer's car wash has been successfully completed.\n\n"
-                                f"🛂 Ticket # : {queue_number}\n"
-                                f"🚗 Plate : {plate}\n"
-                                f"👤 Staff Name : {staff_name}\n"
-                            ),
-                            parse_mode='Markdown'
-                        )
-                    except Exception as e:
-                        print(f"Failed to send message to group {gid}: {e}")
+            # Message to subgroup (in the specified thread)
+            try:
+                await context.bot.send_message(
+                    chat_id=DEFAULT_SUBGROUP_ID,
+                    message_thread_id=MESSAGE_THREAD_ID,
+                    text=(
+                        f"អតិថិជនត្រូវបានជូនដំណឹងថារថយន្តរបស់គាត់រួចរាល់។\n\n"
+                        f"🛂 លេខសំបុត្រ / Ticket Number: {queue_number}\n"
+                        f"🚗 ផ្លាកលេខ / Plate: {plate}\n"
+                        f"👤 បុគ្គលិក / Staff: {staff_name}\n"
+                        f"⏰ ពេលវេលា / Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+                        
+                        f"The customer has been notified that their car is ready\n\n"
+                        f"🛂 Ticket Number: {queue_number}\n"
+                        f"🚗 Plate: {plate}\n"
+                        f"👤 Staff: {staff_name}\n"
+                        f"⏰ Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+                    ),
+                    parse_mode='Markdown'
+                )
+            except Exception as e:
+                print(f"Error sending message to subgroup: {e}")
+                # Optionally notify admin about the failure
+                await context.bot.send_message(
+                    chat_id=customer_data["admin_chat"],
+                    text=f"⚠️ Failed to send notification to subgroup: {e}"
+                )
             
             customer_registry[queue_number]["status"] = "ready"
             
@@ -844,14 +703,14 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 "❌ រកមិនឃើញអតិថិជនទេ\n"
                 "❌ Could not find customer."
             )
-# Cancel command handler
+
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         "ប្រតិបត្តិការត្រូវបានបោះបង់។\n"
         "Operation cancelled."
     )
     return ConversationHandler.END
-# Help command handler
+
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     if user_id in admins:
@@ -890,7 +749,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
     
     await update.message.reply_text(help_text, parse_mode='Markdown')
-# Main function to set up the bot and handlers
+
 def main():
     app = ApplicationBuilder().token(TOKEN).build()
 
@@ -919,8 +778,9 @@ def main():
     app.add_handler(CommandHandler('addadmin', add_admin))
     app.add_handler(CommandHandler('removeadmin', remove_admin))
     app.add_handler(CommandHandler('status', check_status))
-    
-    print("🚗 Speed Car Wash bot is running...")
+    app.add_handler(CommandHandler('listadmins', list_admins))
+    app.add_handler(CommandHandler('cancel', cancel))
+
     app.run_polling()
 
 if __name__ == '__main__':
