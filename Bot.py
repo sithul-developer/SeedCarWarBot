@@ -24,7 +24,7 @@ TOKEN = os.getenv('TELEGRAM_TOKEN')
 # Constants
 ADMIN_FILE = "admins.json"  # File to store admin IDs
 DEFAULT_ADMINS = [5742761331]  # Your initial admin IDs
-DEFAULT_SUBGROUP_ID = -1002210878700
+DEFAULT_SUBGROUP_ID = -1002210878700  # Your subgroup ID
 MESSAGE_THREAD_ID = 33970
 PLATE_REGEX = re.compile(r'^[A-Z0-9-]{3,10}$')
 
@@ -641,11 +641,14 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     f"✨ *ជំរាបសួរ! រថយន្តរបស់លោកអ្នកត្រូវបានលាងសំអាតរួចរាល់ហើយ។ !* ✨\n\n"
                     f"🛂 លេខសំបុត្រ# : {queue_number}\n"
                     f"🚗 ផ្លាកលេខ : {plate}\n"
+                    f"👤 ឈ្មោះអតិថិជន : {customer_data.get('customer_name', 'Unknown')}\n"
                     f"👤 ឈ្មោះបុគ្គលិក : {staff_name}\n\n"
+
                     "សូមអរគុណសម្រាប់ការរង់ចាំ និងការជឿទុកចិត្តលើសេវាកម្មរបស់យើងខ្ញុំ។ 🚗✨\n\n"
                     "✨ *Dear valued customer! Your car has been washed and is now ready.* ✨\n\n"
                     f"🛂 Ticket Number : {queue_number}\n"
                     f"🚗 Plate : {plate}\n"
+                    f"👤 Customer Name: {customer_data.get('customer_name', 'Unknown')}\n"
                     f"👤 Staff Name : {staff_name}\n\n"
                     "Thank you for your patience and trust in our service."
                 ),
@@ -675,15 +678,15 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     message_thread_id=MESSAGE_THREAD_ID,
                     text=(
                         f"អតិថិជនត្រូវបានជូនដំណឹងថារថយន្តរបស់គាត់រួចរាល់។\n\n"
-                        f"🛂 លេខសំបុត្រ / Ticket Number: {queue_number}\n"
-                        f"🚗 ផ្លាកលេខ / Plate: {plate}\n"
-                        f"👤 បុគ្គលិក / Staff: {staff_name}\n"
-                        f"⏰ ពេលវេលា / Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+                        f"🛂 លេខសំបុត្រ : {queue_number}\n"
+                        f"🚗 ផ្លាកលេខ : {plate}\n"
+                        f"👤 ឈ្មោះបុគ្គលិក : {staff_name}\n"
+                        f"⏰ ពេលវេលា: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
                         
                         f"The customer has been notified that their car is ready\n\n"
                         f"🛂 Ticket Number: {queue_number}\n"
                         f"🚗 Plate: {plate}\n"
-                        f"👤 Staff: {staff_name}\n"
+                        f"👤 Staff Name: {staff_name}\n"
                         f"⏰ Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
                     ),
                     parse_mode='Markdown'
