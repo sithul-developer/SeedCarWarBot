@@ -633,6 +633,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if customer_data and customer_data["customer_chat"]:
             plate = customer_data.get('plate', 'unknown plate')
             staff_name = update.effective_user.full_name
+            customer_name = customer_data.get('customer_name', 'Unknown')
             
             # Message to customer
             await context.bot.send_message(
@@ -641,14 +642,14 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     f"✨ *ជំរាបសួរ! រថយន្តរបស់លោកអ្នកត្រូវបានលាងសំអាតរួចរាល់ហើយ។ !* ✨\n\n"
                     f"🛂 លេខសំបុត្រ# : {queue_number}\n"
                     f"🚗 ផ្លាកលេខ : {plate}\n"
-                    f"👤 ឈ្មោះអតិថិជន : {customer_data.get('customer_name', 'Unknown')}\n"
+                    f"👤 ឈ្មោះអតិថិជន : {customer_name}\n"
                     f"👤 ឈ្មោះបុគ្គលិក : {staff_name}\n\n"
 
                     "សូមអរគុណសម្រាប់ការរង់ចាំ និងការជឿទុកចិត្តលើសេវាកម្មរបស់យើងខ្ញុំ។ 🚗✨\n\n"
                     "✨ *Dear valued customer! Your car has been washed and is now ready.* ✨\n\n"
                     f"🛂 Ticket Number : {queue_number}\n"
                     f"🚗 Plate : {plate}\n"
-                    f"👤 Customer Name: {customer_data.get('customer_name', 'Unknown')}\n"
+                    f"👤 Customer Name: {customer_name}\n"
                     f"👤 Staff Name : {staff_name}\n\n"
                     "Thank you for your patience and trust in our service."
                 ),
