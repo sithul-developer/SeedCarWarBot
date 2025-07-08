@@ -8,7 +8,7 @@ from telegram.ext import (
     CallbackQueryHandler,
     MessageHandler,
     filters,
-    ConversationHandler
+    ConversationHandler,
 )
 import re
 import json
@@ -17,16 +17,17 @@ import time
 import threading
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
+import sys
 
 load_dotenv()  # Load environment variables from .env file if present
-TOKEN = os.getenv('TELEGRAM_TOKEN') 
+TOKEN = os.getenv("TELEGRAM_TOKEN")
 
 # Constants
 ADMIN_FILE = "admins.json"  # File to store admin IDs
 DEFAULT_ADMINS = [5742761331]  # Your initial admin IDs
 DEFAULT_SUBGROUP_ID = -1002210878700  # Your subgroup ID -1002210878700_33970
 MESSAGE_THREAD_ID = 33970
-PLATE_REGEX = re.compile(r'^[A-Z0-9-]{3,10}$')
+PLATE_REGEX = re.compile(r"^[A-Z0-9-]{3,10}$")
 
 # Conversation states
 WAITING_PLATE, WAITING_CUSTOMER = range(2)
@@ -34,25 +35,28 @@ WAITING_PLATE, WAITING_CUSTOMER = range(2)
 customer_registry = {}  # Dictionary to store customer data
 queue_counter = 1  # Initialize queue counter
 
+
 def clean_old_entries():
     """Remove entries older than 7 days"""
     global customer_registry
-    
+
     current_time = datetime.now()
     seven_days_ago = current_time - timedelta(days=7)
-    
+
     # Create list of keys to delete
     to_delete = [
-        queue_num for queue_num, data in customer_registry.items()
-        if datetime.strptime(data['timestamp'], '%Y-%m-%d %H:%M:%S') < seven_days_ago
+        queue_num
+        for queue_num, data in customer_registry.items()
+        if datetime.strptime(data["timestamp"], "%Y-%m-%d %H:%M:%S") < seven_days_ago
     ]
-    
+
     # Delete old entries
     for queue_num in to_delete:
         del customer_registry[queue_num]
-    
+
     if to_delete:
         print(f"Cleaned up {len(to_delete)} old entries from customer registry")
+
 
 def scheduled_cleanup():
     """Run cleanup every 24 hours"""
@@ -60,10 +64,12 @@ def scheduled_cleanup():
         clean_old_entries()
         time.sleep(24 * 60 * 60)  # Sleep for 24 hours
 
+
 # Start the cleanup thread when your application starts
 cleanup_thread = threading.Thread(target=scheduled_cleanup)
 cleanup_thread.daemon = True
 cleanup_thread.start()
+
 
 def generate_queue_number():
     """Generate a unique queue number with date prefix"""
@@ -71,20 +77,21 @@ def generate_queue_number():
     today = datetime.now().strftime("%Y%m%d")
     queue_number = f"{today}-{queue_counter:03d}"
     queue_counter += 1
-    
+
     # Ensure timestamp is added to new entries
     customer_registry[queue_number] = {
         **customer_registry.get(queue_number, {}),
-        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
     }
-    
+
     return queue_number
+
 
 def load_admins():
     """Load admin IDs from file or create with default if not exists"""
     if os.path.exists(ADMIN_FILE):
         try:
-            with open(ADMIN_FILE, 'r', encoding='utf-8') as f:
+            with open(ADMIN_FILE, "r", encoding="utf-8") as f:
                 content = f.read().strip()
                 if not content:
                     raise ValueError("Admin file is empty")
@@ -99,16 +106,18 @@ def load_admins():
             except Exception:
                 pass
     try:
-        with open(ADMIN_FILE, 'w', encoding='utf-8') as f:
+        with open(ADMIN_FILE, "w", encoding="utf-8") as f:
             json.dump(DEFAULT_ADMINS, f)
     except Exception as e:
         print(f"Error writing admin file: {e}")
     return DEFAULT_ADMINS
 
+
 def save_admins(admin_list):
     """Save admin IDs to file"""
-    with open(ADMIN_FILE, 'w', encoding='utf-8') as f:
+    with open(ADMIN_FILE, "w", encoding="utf-8") as f:
         json.dump(admin_list, f)
+
 
 async def add_admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Add one or multiple admins at once"""
@@ -156,6 +165,7 @@ async def add_admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await update.message.reply_text(response or "No valid admin IDs provided.")
 
+
 async def remove_admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Remove an admin"""
     if update.effective_user.id not in admins:
@@ -194,6 +204,7 @@ async def remove_admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await update.message.reply_text(response or "No valid admin IDs provided.")
 
+
 async def list_admins(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """List all admin user IDs"""
     if update.effective_user.id not in admins:
@@ -203,27 +214,28 @@ async def list_admins(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("No admins are currently set.")
     else:
         await update.message.reply_text(
-            "Current admins:\n" +
-            "\n".join(f"• {admin_id}" for admin_id in admins)
+            "Current admins:\n" + "\n".join(f"• {admin_id}" for admin_id in admins)
         )
+
 
 admins = load_admins()
 
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
-    
+
     if user_id in admins:
         await update.message.reply_text(
             "👨‍🔧*Admin Panel - Speed Car Wash*\n\n"
             "ពាក្យបញ្ជាដែលអាចប្រើបាន:\n"
             "/register - ចុះឈ្មោះអតិថិជនថ្មី\n"
-            "/ready - ជូនដំណឹងទៅអតិថិជនថារថយន្តរួចរាល់\n" 
+            "/ready - ជូនដំណឹងទៅអតិថិជនថារថយន្តរួចរាល់\n"
             "/cancel - បោះបង់ប្រតិបត្តិការបច្ចុប្បន្ន\n\n"
             "Available commands :\n"
             "/register - Register a new customer\n"
             "/ready - Notify customer their car is ready\n"
             "/cancel - Cancel the current operation",
-            parse_mode='Markdown'
+            parse_mode="Markdown",
         )
     else:
         # Try to extract argument from /start <queue_number> deep link
@@ -232,7 +244,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parts = update.message.text.strip().split()
             if len(parts) > 1:
                 queue_number = parts[1]
-        
+
         if queue_number and queue_number in customer_registry:
             customer_chat = update.effective_chat.id
             customer_registry[queue_number]["customer_chat"] = customer_chat
@@ -245,8 +257,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 f"🚗 ផ្លាកលេខ : {customer_registry[queue_number].get('plate', 'មិនមាន')}\n"
                 f"👤 ឈ្មោះអតិថិជន : {update.effective_user.full_name}\n"
                 f"⏳ ស្ថានភាព៖ កំពុងរង់ចាំសេវាកម្ម\n\n"
-                
-                
                 f"Customer has successfully registered through QR Code\n\n"
                 f"🛂 Ticket number# : {queue_number}\n"
                 f"🚗 Plate : {customer_registry[queue_number].get('plate', 'Not provided')}\n"
@@ -257,9 +267,9 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await context.bot.send_message(
                 chat_id=customer_registry[queue_number]["admin_chat"],
                 text=admin_message,
-                parse_mode='Markdown'
+                parse_mode="Markdown",
             )
-      
+
             # Message to subgroup (in the specified thread)
             if DEFAULT_SUBGROUP_ID and MESSAGE_THREAD_ID:
                 try:
@@ -267,7 +277,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
                         chat_id=DEFAULT_SUBGROUP_ID,
                         message_thread_id=MESSAGE_THREAD_ID,
                         text=(
-                             f"អតិថិជនបានចុះឈ្មោះតាមរយៈ QR Code ដោយជោគជ័យ\n\n"
+                            f"អតិថិជនបានចុះឈ្មោះតាមរយៈ QR Code ដោយជោគជ័យ\n\n"
                             f"🛂 លេខសំបុត្រ# : {queue_number}\n"
                             f"🚗 ផ្លាកលេខ : {customer_registry[queue_number].get('plate', 'មិនមាន')}\n"
                             f"👤 ឈ្មោះអតិថិជន : {update.effective_user.full_name}\n"
@@ -280,11 +290,10 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
                             f"⏳ Status : Waiting for service\n"
                             f"⏰ Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
                         ),
-                        parse_mode='Markdown'
+                        parse_mode="Markdown",
                     )
                 except Exception as e:
                     print(f"Error sending registration notification to subgroup: {e}"),
-                            
 
             await update.message.reply_text(
                 f"ការចុះឈ្មោះអតិថិជនបានដោយជោគជ័យ!\n\n"
@@ -297,24 +306,24 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 f"🚗 Plate : {customer_registry[queue_number].get('plate', 'Not provided')}\n"
                 f"👤 Customer Name : {update.effective_user.full_name}\n\n"
                 "You'll be notified when your car is ready.",
-                parse_mode='Markdown'
+                parse_mode="Markdown",
             )
             return ConversationHandler.END
         else:
             queue_number = generate_queue_number()
             customer_chat = update.effective_chat.id
-            
+
             # Store minimal info until plate is provided
             customer_registry[queue_number] = {
                 "admin_chat": None,  # Will be set when admin completes registration
                 "customer_chat": customer_chat,
                 "status": "pending",
                 "plate": None,
-                "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             }
-            
-            context.user_data['queue_number'] = queue_number
-            
+
+            context.user_data["queue_number"] = queue_number
+
             await update.message.reply_text(
                 "🚗 *សូមស្វាគមន៍មកកាន់ Speed Car Wash!*\n\n"
                 "សូមផ្ញើផ្លាកលេខរថយន្តរបស់អ្នក។\n"
@@ -322,9 +331,10 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 "🚗 *Welcome to Speed Car Wash!*\n\n"
                 "Please send your vehicle plate number.\n"
                 "Example: ABC-1234",
-                parse_mode='Markdown'
+                parse_mode="Markdown",
             )
             return WAITING_PLATE
+
 
 async def register(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id not in admins:
@@ -333,13 +343,14 @@ async def register(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "❌ You are not authorized to use this command."
         )
         return ConversationHandler.END
-    
+
     await update.message.reply_text(
         "✅ សូមផ្ញើផ្លាកលេខរថយន្តរបស់អតិថិជន\n"
         "✅ Please send the vehicle plate number\n\n"
         "Type /cancel to abort."
     )
     return WAITING_PLATE
+
 
 async def receive_plate(update: Update, context: ContextTypes.DEFAULT_TYPE):
     plate = update.message.text.strip().upper()
@@ -348,45 +359,50 @@ async def receive_plate(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "❌ ទម្រង់ផ្លាកលេខមិនត្រឹមត្រូវ។ សូមព្យាយាមម្តងទៀត។\n"
             "❌ Invalid plate format. Please try again.\n\n"
             "Type /cancel to abort.",
-            parse_mode='Markdown'
+            parse_mode="Markdown",
         )
         return WAITING_PLATE
-    
+
     # Check if plate exists in registry
     for existing_data in customer_registry.values():
-        if existing_data.get('plate') == plate:
+        if existing_data.get("plate") == plate:
             await update.message.reply_text(
                 "⚠️ ផ្លាកលេខនេះបានចុះឈ្មោះរួចហើយ។ សូមបញ្ចូលលេខផ្សេង។\n"
                 "⚠️ This plate number is already registered. Please send a different one.\n\n"
                 "Type /cancel to abort."
             )
             return WAITING_PLATE
-    
+
     if update.effective_user.id in admins:  # Admin registration flow
         queue_number = generate_queue_number()
         admin_chat = update.effective_chat.id
-        
+
         customer_registry[queue_number] = {
             "admin_chat": admin_chat,
             "customer_chat": None,
             "status": "registered",
             "plate": plate,
-            "timestamp": datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-            "customer_name": update.effective_user.full_name
+            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "customer_name": update.effective_user.full_name,
         }
-        
+
         # Generate QR code
         bot_username = (await context.bot.get_me()).username
         deep_link = f"https://t.me/{bot_username}?start={queue_number}"
 
-        qr = qrcode.QRCode(version=1, error_correction=qrcode.constants.ERROR_CORRECT_L, box_size=10, border=4)
+        qr = qrcode.QRCode(
+            version=1,
+            error_correction=qrcode.constants.ERROR_CORRECT_L,
+            box_size=10,
+            border=4,
+        )
         qr.add_data(deep_link)
         qr.make(fit=True)
 
         img = qr.make_image(fill_color="black", back_color="white")
         bio = BytesIO()
-        bio.name = 'qr_code.png'
-        img.save(bio, 'PNG')
+        bio.name = "qr_code.png"
+        img.save(bio, "PNG")
         bio.seek(0)
 
         caption = (
@@ -408,20 +424,19 @@ async def receive_plate(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"{deep_link}"
         )
 
-        await update.message.reply_photo(
-            photo=bio,
-            caption=caption
-        )
-     
+        await update.message.reply_photo(photo=bio, caption=caption)
+
     else:  # Customer self-registration flow
-        queue_number = context.user_data.get('queue_number')
-        customer_registry[queue_number].update({
-            "plate": plate,
-            "status": "waiting",
-            "customer_name": update.effective_user.full_name,
-            "customer_chat": update.effective_chat.id
-        })
-        
+        queue_number = context.user_data.get("queue_number")
+        customer_registry[queue_number].update(
+            {
+                "plate": plate,
+                "status": "waiting",
+                "customer_name": update.effective_user.full_name,
+                "customer_chat": update.effective_chat.id,
+            }
+        )
+
         # Notify customer
         await update.message.reply_text(
             f"ការចុះឈ្មោះអតិថិជនបានដោយជោគជ័យ!\n\n"
@@ -434,9 +449,9 @@ async def receive_plate(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"🚗 Plate : {plate}\n"
             f"👤 Customer Name : {update.effective_user.full_name}\n\n"
             "You'll be notified when your car is ready.",
-            parse_mode='Markdown'
+            parse_mode="Markdown",
         )
-        
+
         # Send notification to admin
         if admins:
             admin_chat = customer_registry[queue_number]["admin_chat"]
@@ -444,7 +459,7 @@ async def receive_plate(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 # If admin chat is not set, use the first admin
                 admin_chat = admins[0]
                 customer_registry[queue_number]["admin_chat"] = admin_chat
-            
+
             try:
                 await context.bot.send_message(
                     chat_id=admin_chat,
@@ -460,38 +475,38 @@ async def receive_plate(update: Update, context: ContextTypes.DEFAULT_TYPE):
                         f"👤 Customer Name : {update.effective_user.full_name}\n"
                         f"⏳ Status : Waiting for service\n\n"
                     ),
-                    parse_mode='Markdown'
+                    parse_mode="Markdown",
                 )
-                
+
             except Exception as e:
                 print(f"Failed to notify admin {admin_chat}: {e}")
         # Send notification to subgroup
         if DEFAULT_SUBGROUP_ID and MESSAGE_THREAD_ID:
-             await context.bot.send_message(
-                    chat_id=DEFAULT_SUBGROUP_ID,
-                        message_thread_id=MESSAGE_THREAD_ID,
-                            text=(
-                                f"អតិថិជនបានចុះឈ្មោះដោយខ្លួនឯងដោយជោគជ័យ\n\n"
-                                f"🛂 លេខសំបុត្រ# : {queue_number}\n"
-                                f"🚗 ផ្លាកលេខ : {plate}\n"
-                                f"👤 ឈ្មោះអតិថិជន : {update.effective_user.full_name}\n"
-                                f"⏳ ស្ថានភាព៖ កំពុងរង់ចាំសេវាកម្ម\n"
-                                f"⏰ ពេលវេលា: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
-
-                                f"Customer has self-registered successfully\n\n"
-                                f"🛂 Ticket Number: {queue_number}\n"
-                                f"🚗 Plate: {plate}\n"
-                                f"👤 Customer: {update.effective_user.full_name}\n"
-                                f"⏳ Status: Waiting for service\n"
-                                f"⏰ Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
-                            ),
-                            parse_mode='Markdown'           
-                    )
+            await context.bot.send_message(
+                chat_id=DEFAULT_SUBGROUP_ID,
+                message_thread_id=MESSAGE_THREAD_ID,
+                text=(
+                    f"អតិថិជនបានចុះឈ្មោះដោយខ្លួនឯងដោយជោគជ័យ\n\n"
+                    f"🛂 លេខសំបុត្រ# : {queue_number}\n"
+                    f"🚗 ផ្លាកលេខ : {plate}\n"
+                    f"👤 ឈ្មោះអតិថិជន : {update.effective_user.full_name}\n"
+                    f"⏳ ស្ថានភាព៖ កំពុងរង់ចាំសេវាកម្ម\n"
+                    f"⏰ ពេលវេលា: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+                    f"Customer has self-registered successfully\n\n"
+                    f"🛂 Ticket Number: {queue_number}\n"
+                    f"🚗 Plate: {plate}\n"
+                    f"👤 Customer: {update.effective_user.full_name}\n"
+                    f"⏳ Status: Waiting for service\n"
+                    f"⏰ Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+                ),
+                parse_mode="Markdown",
+            )
 
         # Update customer data
         customer_registry[queue_number]["customer_chat"] = update.effective_user.id
-             
+
     return ConversationHandler.END
+
 
 async def ready(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id not in admins:
@@ -500,29 +515,35 @@ async def ready(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "❌ You are not authorized to use this command."
         )
         return
-    
+
     ready_customers = {
-        qn: data for qn, data in customer_registry.items()
+        qn: data
+        for qn, data in customer_registry.items()
         if data["customer_chat"] and data["status"] == "waiting"
     }
-    
+
     if not ready_customers:
         await update.message.reply_text(
             "🚫 គ្មានអតិថិជនណាកំពុងរង់ចាំការជូនដំណឹងទេ។\n"
             "🚫 No customers currently waiting for notification."
         )
         return
-    
+
     buttons = [
-        [InlineKeyboardButton(f"{qn} ({data.get('plate', 'No plate')})", callback_data=f"ready_{qn}")]
+        [
+            InlineKeyboardButton(
+                f"{qn} ({data.get('plate', 'No plate')})", callback_data=f"ready_{qn}"
+            )
+        ]
         for qn, data in ready_customers.items()
     ]
-    
+
     await update.message.reply_text(
         "📢 ជ្រើសរើសអតិថិជនដើម្បីជូនដំណឹង (លេខសំបុត្រ# - ផ្លាកលេខ):\n"
-        "📢 Select customer to notify ( Ticket Number - Plate):", 
-        reply_markup=InlineKeyboardMarkup(buttons)
+        "📢 Select customer to notify ( Ticket Number - Plate):",
+        reply_markup=InlineKeyboardMarkup(buttons),
     )
+
 
 def format_status(queue_number, data):
     """Format status information for display with bilingual support"""
@@ -530,11 +551,17 @@ def format_status(queue_number, data):
         "pending": ("⏳ Pending registration", "⏳ កំពុងរង់ចាំចុះឈ្មោះ"),
         "waiting": ("🛠 In progress (waiting)", "🛠 កំពុងធ្វើការ (រង់ចាំ)"),
         "ready": ("✅ Ready for pickup", "✅ រួចរាល់សម្រាប់ទទួល"),
-        "registered": ("📝 Registered (waiting for customer)", "📝 បានចុះឈ្មោះ (រង់ចាំអតិថិជន)")
+        "registered": (
+            "📝 Registered (waiting for customer)",
+            "📝 បានចុះឈ្មោះ (រង់ចាំអតិថិជន)",
+        ),
     }
-    
-    status_en, status_kh = status_mapping.get(data.get("status", "pending"), (data.get("status", "pending"), data.get("status", "pending")))
-    
+
+    status_en, status_kh = status_mapping.get(
+        data.get("status", "pending"),
+        (data.get("status", "pending"), data.get("status", "pending")),
+    )
+
     message = (
         f"👤 *ឈ្មោះអតិថិជន / Customer*: {data.get('customer_name', 'មិនមាន / None')}\n"
         f"🛂 *លេខសំបុត្រ / Ticket*: `{queue_number}`\n"
@@ -544,21 +571,21 @@ def format_status(queue_number, data):
     )
     return message
 
+
 async def check_status(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Check the status of a car wash registration"""
     user_id = update.effective_user.id
-    
+
     # Check if user provided a queue number
     if context.args:
         queue_number = context.args[0]
         if queue_number in customer_registry:
             data = customer_registry[queue_number]
-            
+
             # Check if user is authorized (either admin, or the customer who registered)
             if user_id in admins or data.get("customer_chat") == user_id:
                 await update.message.reply_text(
-                    format_status(queue_number, data),
-                    parse_mode='Markdown'
+                    format_status(queue_number, data), parse_mode="Markdown"
                 )
             else:
                 await update.message.reply_text(
@@ -567,11 +594,10 @@ async def check_status(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 )
         else:
             await update.message.reply_text(
-                "❌ Ticket number not found.\n"
-                "❌ រកមិនឃើញលេខសំបុត្រនេះទេ។"
+                "❌ Ticket number not found.\n" "❌ រកមិនឃើញលេខសំបុត្រនេះទេ។"
             )
         return
-    
+
     # If no queue number provided, show all relevant tickets
     if user_id in admins:
         # Admin sees all tickets
@@ -583,55 +609,47 @@ async def check_status(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         # Customer sees only their tickets
         relevant_tickets = [
-            (qn, data) for qn, data in customer_registry.items()
+            (qn, data)
+            for qn, data in customer_registry.items()
             if data.get("customer_chat") == user_id
         ]
-        header = (
-            "🚗 *Your Car Wash Tickets* 🚗\n"
-            "🚗 *សំបុត្រលាងរថយន្តរបស់អ្នក* 🚗\n\n"
-        )
-    
+        header = "🚗 *Your Car Wash Tickets* 🚗\n" "🚗 *សំបុត្រលាងរថយន្តរបស់អ្នក* 🚗\n\n"
+
     if not relevant_tickets:
-        await update.message.reply_text(
-            "ℹ️ No tickets found.\n"
-            "ℹ️ មិនមានសំបុត្រណាមួយទេ។"
-        )
+        await update.message.reply_text("ℹ️ No tickets found.\n" "ℹ️ មិនមានសំបុត្រណាមួយទេ។")
         return
-    
+
     # Prepare message parts
     message_parts = [header]
-    
+
     for queue_number, data in relevant_tickets:
         status_text = format_status(queue_number, data)
-        if len('\n\n'.join(message_parts) + '\n\n' + status_text) > 4000:
+        if len("\n\n".join(message_parts) + "\n\n" + status_text) > 4000:
             # Send current parts if adding this would exceed limit
             await update.message.reply_text(
-                '\n\n'.join(message_parts),
-                parse_mode='Markdown'
+                "\n\n".join(message_parts), parse_mode="Markdown"
             )
             message_parts = [header]  # Start new message with header
-        
+
         message_parts.append(status_text)
-    
+
     # Send remaining messages
     for i, part in enumerate(message_parts):
         if i == 0 and len(message_parts) > 1:
             continue  # Skip header if it's not the only part
-        await update.message.reply_text(
-            part,
-            parse_mode='Markdown'
-        )
+        await update.message.reply_text(part, parse_mode="Markdown")
+
 
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
-    
+
     if query.data.startswith("ready_"):
         queue_number = query.data[6:]
         customer_data = customer_registry.get(queue_number)
-        
+
         if customer_data and customer_data["customer_chat"]:
-            plate = customer_data.get('plate', 'unknown plate')
+            plate = customer_data.get("plate", "unknown plate")
             staff_name = update.effective_user.full_name
             # Message to customer
             await context.bot.send_message(
@@ -646,9 +664,9 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     f"🚗 Plate : {plate}\n"
                     "Thank you for your patience and trust in our service."
                 ),
-                parse_mode='Markdown'
+                parse_mode="Markdown",
             )
-            
+
             # Message to admin
             await context.bot.send_message(
                 chat_id=customer_data["admin_chat"],
@@ -662,9 +680,9 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     f"🚗 Plate : {plate}\n"
                     f"👤 Staff Name : {staff_name}\n\n"
                 ),
-                parse_mode='Markdown'
+                parse_mode="Markdown",
             )
-            
+
             # Message to subgroup (in the specified thread)
             try:
                 await context.bot.send_message(
@@ -676,37 +694,34 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                         f"🚗 ផ្លាកលេខ : {plate}\n"
                         f"👤 ឈ្មោះបុគ្គលិក : {staff_name}\n"
                         f"⏰ ពេលវេលា: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
-                        
                         f"The customer has been notified that their car is ready\n\n"
                         f"🛂 Ticket Number: {queue_number}\n"
                         f"🚗 Plate: {plate}\n"
                         f"👤 Staff Name: {staff_name}\n"
                         f"⏰ Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
                     ),
-                    parse_mode='Markdown'
+                    parse_mode="Markdown",
                 )
             except Exception as e:
                 print(f"Error sending message to subgroup: {e}")
                 # Optionally notify admin about the failure
                 await context.bot.send_message(
                     chat_id=customer_data["admin_chat"],
-                    text=f"⚠️ Failed to send notification to subgroup: {e}"
+                    text=f"⚠️ Failed to send notification to subgroup: {e}",
                 )
-            
+
             customer_registry[queue_number]["status"] = "ready"
-            
+
         else:
             await query.edit_message_text(
-                "❌ រកមិនឃើញអតិថិជនទេ\n"
-                "❌ Could not find customer."
+                "❌ រកមិនឃើញអតិថិជនទេ\n" "❌ Could not find customer."
             )
 
+
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
-        "ប្រតិបត្តិការត្រូវបានបោះបង់។\n"
-        "Operation cancelled."
-    )
+    await update.message.reply_text("ប្រតិបត្តិការត្រូវបានបោះបង់។\n" "Operation cancelled.")
     return ConversationHandler.END
+
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
@@ -744,41 +759,101 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "2. ផ្ញើផ្លាកលេខរថយន្តរបស់អ្នកនៅពេលស្នើសុំ\n"
             "3. អ្នកនឹងទទួលបានការជូនដំណឹងនៅពេលរថយន្តរបស់អ្នករួចរាល់"
         )
-    
-    await update.message.reply_text(help_text, parse_mode='Markdown')
+
+    await update.message.reply_text(help_text, parse_mode="Markdown")
+
 
 def main():
     app = ApplicationBuilder().token(TOKEN).build()
 
     reg_conv_handler = ConversationHandler(
-        entry_points=[CommandHandler('register', register)],
+        entry_points=[CommandHandler("register", register)],
         states={
-            WAITING_PLATE: [MessageHandler(filters.TEXT & ~filters.COMMAND, receive_plate)]
+            WAITING_PLATE: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, receive_plate)
+            ]
         },
-        fallbacks=[CommandHandler('cancel', cancel)]
+        fallbacks=[CommandHandler("cancel", cancel)],
     )
 
     customer_conv_handler = ConversationHandler(
-        entry_points=[CommandHandler('start', start)],
+        entry_points=[CommandHandler("start", start)],
         states={
-            WAITING_PLATE: [MessageHandler(filters.TEXT & ~filters.COMMAND, receive_plate)]
+            WAITING_PLATE: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, receive_plate)
+            ]
         },
-        fallbacks=[CommandHandler('cancel', cancel)]
+        fallbacks=[CommandHandler("cancel", cancel)],
     )
 
     # Register handlers
     app.add_handler(reg_conv_handler)
     app.add_handler(customer_conv_handler)
-    app.add_handler(CommandHandler('ready', ready))
+    app.add_handler(CommandHandler("ready", ready))
     app.add_handler(CallbackQueryHandler(button_handler))
-    app.add_handler(CommandHandler('help', help_command))
-    app.add_handler(CommandHandler('addadmin', add_admin))
-    app.add_handler(CommandHandler('removeadmin', remove_admin))
-    app.add_handler(CommandHandler('status', check_status))
-    app.add_handler(CommandHandler('listadmins', list_admins))
-    app.add_handler(CommandHandler('cancel', cancel))
+    app.add_handler(CommandHandler("help", help_command))
+    app.add_handler(CommandHandler("addadmin", add_admin))
+    app.add_handler(CommandHandler("removeadmin", remove_admin))
+    app.add_handler(CommandHandler("status", check_status))
+    app.add_handler(CommandHandler("listadmins", list_admins))
+    app.add_handler(CommandHandler("cancel", cancel))
 
     app.run_polling()
 
-if __name__ == '__main__':
-    main()
+
+if __name__ == "__main__":
+    # --- Webhook support for Render.com or similar platforms ---
+
+    if "RENDER" in os.environ or "PORT" in os.environ:
+        # Use webhook if running on Render or PORT is set
+        PORT = int(os.environ.get("PORT", 8443))
+        # Use the same token as above
+        WEBHOOK_URL = (
+            os.environ.get("WEBHOOK_URL")
+            or f"https://seedcarwarbot.onrender.com/{TOKEN}"
+        )
+
+        # Build the app instance for webhook mode
+        app = ApplicationBuilder().token(TOKEN).build()
+
+        # Register handlers (same as in main)
+        reg_conv_handler = ConversationHandler(
+            entry_points=[CommandHandler("register", register)],
+            states={
+                WAITING_PLATE: [
+                    MessageHandler(filters.TEXT & ~filters.COMMAND, receive_plate)
+                ]
+            },
+            fallbacks=[CommandHandler("cancel", cancel)],
+        )
+
+        customer_conv_handler = ConversationHandler(
+            entry_points=[CommandHandler("start", start)],
+            states={
+                WAITING_PLATE: [
+                    MessageHandler(filters.TEXT & ~filters.COMMAND, receive_plate)
+                ]
+            },
+            fallbacks=[CommandHandler("cancel", cancel)],
+        )
+
+        app.add_handler(reg_conv_handler)
+        app.add_handler(customer_conv_handler)
+        app.add_handler(CommandHandler("ready", ready))
+        app.add_handler(CallbackQueryHandler(button_handler))
+        app.add_handler(CommandHandler("help", help_command))
+        app.add_handler(CommandHandler("addadmin", add_admin))
+        app.add_handler(CommandHandler("removeadmin", remove_admin))
+        app.add_handler(CommandHandler("status", check_status))
+        app.add_handler(CommandHandler("listadmins", list_admins))
+        app.add_handler(CommandHandler("cancel", cancel))
+
+        # For python-telegram-bot v20+, use Application.run_webhook
+        app.run_webhook(
+            listen="0.0.0.0",
+            port=PORT,
+            webhook_url=f"{WEBHOOK_URL}/{TOKEN}",
+        )
+    else:
+        # Default to polling for local development
+        main()
