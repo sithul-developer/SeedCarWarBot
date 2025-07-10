@@ -1,3 +1,4 @@
+from flask import app
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 import qrcode
 from io import BytesIO
@@ -17,11 +18,10 @@ import time
 import threading
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
-import sys
 
 load_dotenv()  # Load environment variables from .env file if present
 TOKEN = os.getenv("TELEGRAM_TOKEN")
-
+PORT = int(os.environ.get("PORT", 5000))
 # Constants
 ADMIN_FILE = "admins.json"  # File to store admin IDs
 DEFAULT_ADMINS = [5742761331]  # Your initial admin IDs
@@ -800,60 +800,7 @@ def main():
 
     app.run_polling()
 
+app.run(host="0.0.0.0", port=PORT)
 
 if __name__ == "__main__":
-    # --- Webhook support for Render.com or similar platforms ---
-
-    if "RENDER" in os.environ or "PORT" in os.environ:
-        # Use webhook if running on Render or PORT is set
-        PORT = int(os.environ.get("PORT", 8443))
-        # Use the same token as above
-        WEBHOOK_URL = (
-            os.environ.get("WEBHOOK_URL")
-            or f"https://seedcarwarbot.onrender.com/{TOKEN}"
-        )
-
-        # Build the app instance for webhook mode
-        app = ApplicationBuilder().token(TOKEN).build()
-
-        # Register handlers (same as in main)
-        reg_conv_handler = ConversationHandler(
-            entry_points=[CommandHandler("register", register)],
-            states={
-                WAITING_PLATE: [
-                    MessageHandler(filters.TEXT & ~filters.COMMAND, receive_plate)
-                ]
-            },
-            fallbacks=[CommandHandler("cancel", cancel)],
-        )
-
-        customer_conv_handler = ConversationHandler(
-            entry_points=[CommandHandler("start", start)],
-            states={
-                WAITING_PLATE: [
-                    MessageHandler(filters.TEXT & ~filters.COMMAND, receive_plate)
-                ]
-            },
-            fallbacks=[CommandHandler("cancel", cancel)],
-        )
-
-        app.add_handler(reg_conv_handler)
-        app.add_handler(customer_conv_handler)
-        app.add_handler(CommandHandler("ready", ready))
-        app.add_handler(CallbackQueryHandler(button_handler))
-        app.add_handler(CommandHandler("help", help_command))
-        app.add_handler(CommandHandler("addadmin", add_admin))
-        app.add_handler(CommandHandler("removeadmin", remove_admin))
-        app.add_handler(CommandHandler("status", check_status))
-        app.add_handler(CommandHandler("listadmins", list_admins))
-        app.add_handler(CommandHandler("cancel", cancel))
-
-        # For python-telegram-bot v20+, use Application.run_webhook
-        app.run_webhook(
-            listen="0.0.0.0",
-            port=PORT,
-            webhook_url=f"{WEBHOOK_URL}/{TOKEN}",
-        )
-    else:
-        # Default to polling for local development
-        main()
+    main()
