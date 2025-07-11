@@ -1,3 +1,6 @@
+
+from telegram.ext import Updater
+Updater._Updater__polling_cleanup_cb = None 
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 import qrcode
 from io import BytesIO
