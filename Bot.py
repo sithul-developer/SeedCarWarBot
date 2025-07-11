@@ -798,9 +798,18 @@ def main():
     app.add_handler(CommandHandler("listadmins", list_admins))
     app.add_handler(CommandHandler("cancel", cancel))
 
-    app.run_polling()
+    # Webhook setup for Render
+    if "RENDER" in os.environ:
+        url = f"https://{os.getenv('RENDER_EXTERNAL_HOSTNAME')}/webhook"
+        app.run_webhook(
+            listen="0.0.0.0",
+            port=int(os.getenv("PORT", 10000)),
+            url_path=TOKEN,
+            webhook_url=url,
+        )
+    else:
+        app.run_polling()
 
-app.run(host="0.0.0.0", port=PORT)
 
 if __name__ == "__main__":
     main()
