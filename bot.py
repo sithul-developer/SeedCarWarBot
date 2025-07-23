@@ -19,7 +19,7 @@ from datetime import datetime, timedelta
 from dotenv import load_dotenv
 
 load_dotenv()  # Load environment variables from .env file if present
-TOKEN = os.getenv("TELEGRAM_TOKEN")
+TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 # Constants
 ADMIN_FILE = "admins.json"  # File to store admin IDs
 GROUP_FILE = "group_ids.json"
