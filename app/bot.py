@@ -7,7 +7,6 @@ from telegram.ext import (
     ContextTypes,
     CallbackQueryHandler,
     MessageHandler,
-    Application,
     filters,
     ConversationHandler,
 )
@@ -15,7 +14,7 @@ import re
 import json
 import os
 from dotenv import load_dotenv
-TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")  
+
 # Constants
 
 ADMIN_FILE = "admins.json"  # File to store admin IDs
@@ -632,30 +631,13 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await update.message.reply_text(help_text, parse_mode="Markdown")
 
-    async def post_init(app):
-    # This will run after the webhook is set up
-      await app.bot.set_webhook(WEBHOOK_URL)
+
 def main():
-   load_dotenv()
-    
-    TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
-    PORT = int(os.environ.get("PORT", 8443))  # Render provides a PORT env var
-    WEBHOOK_URL = "https://seedcarwarbot-1.onrender.com"  # Your Render URL
-    WEBHOOK_SECRET = os.getenv("WEBHOOK_SECRET", None)  # Optional secret token
-
-    # Build the application
-    app = ApplicationBuilder().token(TOKEN).build()
-    
-    # Add command handlers
-    app.add_handler(CommandHandler("start", start))
-
-    # Run the webhook
-    app.run_webhook(
-        listen="0.0.0.0",
-        port=PORT,
-        webhook_url=WEBHOOK_URL,
-        secret_token=WEBHOOK_SECRET if WEBHOOK_SECRET else None,
-    )
+    load_dotenv()
+    TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+    if not TELEGRAM_BOT_TOKEN:
+        raise RuntimeError("TELEGRAM_BOT_TOKEN not set in .env file")
+    app = ApplicationBuilder().token(TELEGRAM_BOT_TOKEN).build()
 
     # Conversation handlers
     reg_conv_handler = ConversationHandler(
