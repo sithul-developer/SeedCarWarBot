@@ -15,6 +15,7 @@ import json
 import os
 from dotenv import load_dotenv
 from telegram.error import Conflict
+
 # Constants
 
 ADMIN_FILE = "admins.json"  # File to store admin IDs
@@ -614,6 +615,10 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "/cancel - បោះបង់ប្រតិបត្តិការបច្ចុប្បន្ន\n\n"
             "ពាក្យបញ្ជាសម្រាប់អតិថិជន៖\n"
             "/start - ចាប់ផ្តើមដំណើរការចុះឈ្មោះ"
+            "\n\n*Bot Policy:*\n"
+            "❌ No game/gambling messages allowed\n"
+            "គោលនយោបាយបូត៖\n"
+            "❌ មិនអនុញ្ញាតឱ្យមានសារល្បែង/ភ្នាល់"
         )
     else:
         help_text = (
@@ -627,12 +632,135 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "1. បញ្ជូនពាក្យបញ្ជា /start\n"
             "2. ផ្ញើលេខទូរស័ព្ទរបស់អ្នកនៅពេលស្នើសុំ\n"
             "3. អ្នកនឹងទទួលបានការជូនដំណឹងនៅពេលរថយន្តរបស់អ្នករួចរាល់"
+            "\n\n*Please Note:*\n"
+            "This bot is for car wash notifications only.\n"
+            "Game/gambling messages are not allowed.\n\n"
+            "សូមចំណាំ៖\n"
+            "បូតនេះសម្រាប់ការជូនដំណឹងលាងរថយន្តតែប៉ុណ្ណោះ។\n"
+            "មិនអនុញ្ញាតឱ្យមានសារល្បែង/ភ្នាល់ទេ។"
         )
 
     await update.message.reply_text(help_text, parse_mode="Markdown")
 
 
+def is_game_message(text: str) -> bool:
+    """Check if message contains game/gambling/spam keywords"""
+    game_keywords = [
+        "game",
+        "gamble",
+        "bet",
+        "Claim" "casino",
+        "TOKEN",
+        "lottery",
+        "slot",
+        "poker",
+        "baccarat",
+        "roulette",
+        "ភ្នាល់",
+        "ល្បែង",
+        "ស្លត់",
+        "បាការ៉ាត់",
+        "ឡូតេ",
+    ]
+    text_lower = text.lower()
+    return any(keyword in text_lower for keyword in game_keywords)
 
+
+def is_prohibited_message(text: str) -> bool:
+    """Check if message contains game/gambling/crypto scam/airdrop keywords"""
+    prohibited_keywords = [
+        # Game/Gambling keywords
+        "game",
+        "gamble",
+        "bet",
+        "casino",
+        "lottery",
+        "slot",
+        "poker",
+        "baccarat",
+        "roulette",
+        "ភ្នាល់",
+        "ល្បែង",
+        "ស្លត់",
+        "បាការ៉ាត់",
+        "ឡូតេ",
+        # Crypto scam/airdrop keywords
+        "airdrop",
+        "token",
+        "claim free",
+        "crypto",
+        "web3",
+        "defi",
+        "wallet connect",
+        "connect wallet",
+        "snapshot",
+        "presale",
+        "whitelist",
+        "fomo",
+        "hurry",
+        "limited offer",
+        "first come",
+        "$FRIEND",
+        "socialfi",
+        "meme coin",
+        "nft giveaway",
+        "អាកាសយាន",
+        "ថេរូវ",
+        "គ្រាប់បរិច្ចាគ",
+        "ឥតគិតថ្លៃ",
+    ]
+
+    # Check for URL patterns
+    url_pattern = re.compile(r"https?://\S+|www\.\S+")
+    has_url = bool(url_pattern.search(text.lower()))
+
+    text_lower = text.lower()
+    return any(keyword in text_lower for keyword in prohibited_keywords) or has_url
+
+
+async def filter_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Filter out game/gambling/spam messages"""
+    if not update.message or not update.message.text:
+        return
+
+    if is_game_message(update.message.text):
+        user = update.effective_user
+        warning_msg = (
+            "⚠️ *Warning* ⚠️\n\n"
+            "Game/gambling messages are not allowed in this bot.\n"
+            "Repeated violations may result in being blocked.\n\n"
+            "សារល្បែង/ភ្នាល់មិនត្រូវបានអនុញ្ញាតនៅក្នុងបូតនេះទេ។\n"
+            "ការបំពានដដែលៗអាចនឹងនាំឱ្យមានការហាមឃាត់។"
+        )
+
+        try:
+            await update.message.delete()
+            await context.bot.send_message(
+                chat_id=update.effective_chat.id,
+                text=warning_msg,
+                parse_mode="Markdown",
+            )
+        except Exception as e:
+            print(f"Couldn't delete game message: {e}")
+    if is_prohibited_message(update.message.text):
+        user = update.effective_user
+        warning_msg = (
+            "⚠️ *Warning* ⚠️\n\n"
+            "Game/gambling/crypto scam messages are not allowed in this bot.\n"
+            "Repeated violations may result in being blocked.\n\n"
+            "សារល្បែង/ភ្នាល់/សារបោកប្រាស់ crypto មិនត្រូវបានអនុញ្ញាតនៅក្នុង bot នេះទេ។\n"
+            "ការបំពានដដែលៗអាចនឹងនាំឱ្យមានការហាមឃាត់។"
+        )
+
+        try:
+            await update.message.delete()
+            await context.bot.send_message(
+                chat_id=update.effective_chat.id,
+                text=warning_msg,
+                parse_mode="Markdown",
+            )
+        except Exception as e:
+            print(f"Couldn't delete prohibited message: {e}")
 
 
 def main():
@@ -665,6 +793,7 @@ def main():
         },
         fallbacks=[CommandHandler("cancel", cancel)],
     )
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, filter_messages))
 
     # Register handlers
     app.add_handler(reg_conv_handler)
