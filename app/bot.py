@@ -15,6 +15,7 @@ import re
 import json
 import os
 from dotenv import load_dotenv
+TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")  
 # Constants
 
 ADMIN_FILE = "admins.json"  # File to store admin IDs
