@@ -631,25 +631,30 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await update.message.reply_text(help_text, parse_mode="Markdown")
 
-
+    async def post_init(app):
+    # This will run after the webhook is set up
+    await app.bot.set_webhook(WEBHOOK_URL)
 def main():
-    load_dotenv()
+   load_dotenv()
     
     TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
     PORT = int(os.environ.get("PORT", 8443))  # Render provides a PORT env var
     WEBHOOK_URL = "https://seedcarwarbot-1.onrender.com"  # Your Render URL
+    WEBHOOK_SECRET = os.getenv("WEBHOOK_SECRET", None)  # Optional secret token
 
+    # Build the application
     app = ApplicationBuilder().token(TOKEN).build()
+    
+    # Add command handlers
+    app.add_handler(CommandHandler("start", start))
 
-    # Set up webhook
-    async def post_init(app: Application):
-        await app.bot.set_webhook(f"{WEBHOOK_URL}/{TOKEN}")
-
+    # Run the webhook
     app.run_webhook(
-    listen="0.0.0.0",
-    port=PORT,
-    webhook_url=WEBHOOK_URL,
-)
+        listen="0.0.0.0",
+        port=PORT,
+        webhook_url=WEBHOOK_URL,
+        secret_token=WEBHOOK_SECRET if WEBHOOK_SECRET else None,
+    )
 
     # Conversation handlers
     reg_conv_handler = ConversationHandler(
