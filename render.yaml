@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: SpeedCarWashBot
+    name: speed-car-wash-bot
     env: python
     buildCommand: pip install -r requirements.txt
     startCommand: /start.sh
