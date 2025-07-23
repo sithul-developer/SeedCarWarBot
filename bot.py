@@ -14,7 +14,7 @@ import re
 import json
 import os
 from dotenv import load_dotenv
-
+from telegram.error import Conflict
 # Constants
 
 ADMIN_FILE = "admins.json"  # File to store admin IDs
@@ -632,7 +632,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(help_text, parse_mode="Markdown")
 
 
-from telegram.error import Conflict
+
 
 
 def main():
