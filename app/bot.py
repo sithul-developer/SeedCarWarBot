@@ -634,10 +634,24 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 def main():
     load_dotenv()
-    TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
-    if not TELEGRAM_BOT_TOKEN:
-        raise RuntimeError("TELEGRAM_BOT_TOKEN not set in .env file")
-    app = ApplicationBuilder().token(TELEGRAM_BOT_TOKEN).build()
+    
+    TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+    PORT = int(os.environ.get("PORT", 8443))  # Render provides a PORT env var
+    WEBHOOK_URL = "https://seedcarwarbot-1.onrender.com"  # Your Render URL
+
+    app = ApplicationBuilder().token(TOKEN).build()
+
+    # Set up webhook
+    async def post_init(app: Application):
+        await app.bot.set_webhook(f"{WEBHOOK_URL}/{TOKEN}")
+
+    app.run_webhook(
+        listen="18.142.128.26",
+        port=PORT,
+        webhook_url=f"{WEBHOOK_URL}/{TOKEN}",
+        secret_token="https://api.render.com/deploy/srv-d208up15pdvs73c8sjtg?key=hazS7bpbQ6o",  # Optional security
+        post_init=post_init,
+    )
 
     # Conversation handlers
     reg_conv_handler = ConversationHandler(
