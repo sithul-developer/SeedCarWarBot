@@ -646,7 +646,7 @@ def main():
         await app.bot.set_webhook(f"{WEBHOOK_URL}/{TOKEN}")
 
     app.run_webhook(
-        listen="18.142.128.26",
+        listen="0.0.0.0",
         port=PORT,
         webhook_url=f"{WEBHOOK_URL}/{TOKEN}",
         secret_token="https://api.render.com/deploy/srv-d208up15pdvs73c8sjtg?key=hazS7bpbQ6o",  # Optional security
