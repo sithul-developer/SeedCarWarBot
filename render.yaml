@@ -3,7 +3,7 @@ services:
     name: speed-car-wash-bot
     env: python
     buildCommand: pip install -r requirements.txt
-    startCommand: /start.sh
+    startCommand: python3 app/bot.py
     envVars:
       - key: TELEGRAM_BOT_TOKEN
         value: ${TELEGRAM_BOT_TOKEN}
