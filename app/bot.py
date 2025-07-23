@@ -646,12 +646,11 @@ def main():
         await app.bot.set_webhook(f"{WEBHOOK_URL}/{TOKEN}")
 
     app.run_webhook(
-        listen="0.0.0.0",
-        port=PORT,
-        webhook_url=f"{WEBHOOK_URL}/{TOKEN}",
-        secret_token="https://api.render.com/deploy/srv-d208up15pdvs73c8sjtg?key=hazS7bpbQ6o",  # Optional security
-        post_init=post_init,
-    )
+    listen="0.0.0.0",
+    port=PORT,
+    webhook_url=WEBHOOK_URL,
+    secret_token=WEBHOOK_SECRET
+)
 
     # Conversation handlers
     reg_conv_handler = ConversationHandler(
