@@ -633,7 +633,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     async def post_init(app):
     # This will run after the webhook is set up
-    await app.bot.set_webhook(WEBHOOK_URL)
+      await app.bot.set_webhook(WEBHOOK_URL)
 def main():
    load_dotenv()
     
