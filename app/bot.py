@@ -632,6 +632,9 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(help_text, parse_mode="Markdown")
 
 
+from telegram.error import Conflict
+
+
 def main():
     load_dotenv()
     TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
@@ -675,7 +678,19 @@ def main():
     app.add_handler(CommandHandler("setgroup", set_group))
     app.add_handler(CommandHandler("showgroup", show_group))
     print("🚗 Speed Car Wash bot is running...")
-    app.run_polling()
+
+    try:
+        app.run_polling()
+    except Conflict as e:
+        print(f"⚠️ Bot is already running elsewhere: {e}")
+        # Optionally send yourself a notification
+    except Exception as e:
+        print(f"⚠️ Unexpected error: {e}")
+
+
+async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Log errors caused by updates."""
+    print(f"⚠️ Error while handling update: {context.error}")
 
 
 if __name__ == "__main__":
