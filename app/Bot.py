@@ -8,23 +8,28 @@ from telegram.ext import (
     CallbackQueryHandler,
     MessageHandler,
     filters,
-    ConversationHandler
+    ConversationHandler,
 )
 import re
 import json
 import os
+from dotenv import load_dotenv
+
 # Constants
 
 ADMIN_FILE = "admins.json"  # File to store admin IDs
 GROUP_FILE = "group_id.json"
-DEFAULT_ADMINS = [5742761331,509847275]  # Your initial admin ID
+DEFAULT_ADMINS = [5742761331, 509847275]  # Your initial admin ID
 GROUP_ID = -4813155053
-PHONE_REGEX = re.compile(r'^\+?[0-9\s\-]{8,15}$')
-PLATE_REGEX = re.compile(r'^[A-Z0-9-]{3,10}$')
+PHONE_REGEX = re.compile(r"^\+?[0-9\s\-]{8,15}$")
+PLATE_REGEX = re.compile(r"^[A-Z0-9-]{3,10}$")
+# Default group ID for notifications
 # Conversation states
 WAITING_PHONE, WAITING_PLATE, WAITING_CUSTOMER = range(3)
 # Database
-customer_registry = {}  # Format: {phone_number: {"admin_chat": int, "customer_chat": int, "status": str, "plate": str}}
+customer_registry = (
+    {}
+)  # Format: {phone_number: {"admin_chat": int, "customer_chat": int, "status": str, "plate": str}}
 # Helper functions
 # (clean_phone_number is already defined above, so this duplicate can be removed)
 
@@ -32,20 +37,19 @@ customer_registry = {}  # Format: {phone_number: {"admin_chat": int, "customer_c
 # Command handlers
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
-    
+
     if user_id in admins:
         await update.message.reply_text(
             "👨‍🔧 *Admin Panel - Speed Car Wash*\n\n"
             "ពាក្យបញ្ជាដែលអាចប្រើបាន:\n"
             "/register - ចុះឈ្មោះអតិថិជនថ្មី\n"
-            "/ready - ជូនដំណឹងទៅអតិថិជនថារថយន្តរួចរាល់\n" 
+            "/ready - ជូនដំណឹងទៅអតិថិជនថារថយន្តរួចរាល់\n"
             "/cancel - បោះបង់ប្រតិបត្តិការបច្ចុប្បន្ន\n\n"
-        
             "Available commands :\n"
             "/register - Register a new customer\n"
             "/ready - Notify customer their car is ready\n"
             "/cancel - Cancel the current operation",
-            parse_mode='Markdown'
+            parse_mode="Markdown",
         )
     else:
         # Try to extract argument from /start <phone> deep link
@@ -72,7 +76,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     f"🚗 Plate : {customer_registry[phone].get('plate', 'Not provided')}\n"
                     f"⏳ Status : Waiting for service"
                 ),
-                parse_mode='Markdown'
+                parse_mode="Markdown",
             )
 
             await update.message.reply_text(
@@ -84,7 +88,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 f"📱 Phone : {phone}\n"
                 f"🚗 Plate : {customer_registry[phone].get('plate', 'Not provided')}\n\n"
                 "You'll be notified when your car is ready.",
-                parse_mode='Markdown'
+                parse_mode="Markdown",
             )
             return ConversationHandler.END
         else:
@@ -95,9 +99,10 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 "🚗 *Welcome to Speed Car Wash!*\n\n"
                 "Please send your phone number to register for notifications.\n"
                 "Example: +855 xxx xxx xxxx",
-                parse_mode='Markdown'
+                parse_mode="Markdown",
             )
             return WAITING_CUSTOMER
+
 
 async def register(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id not in admins:
@@ -106,7 +111,7 @@ async def register(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "❌ You are not authorized to use this command."
         )
         return ConversationHandler.END
-    
+
     await update.message.reply_text(
         "✅ សូមមផ្ញើលេខទូរស័ព្ទរបស់អតិថិជន\n"
         "✅ Please send the customer's phone number\n\n"
@@ -117,7 +122,7 @@ async def register(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def receive_phone(update: Update, context: ContextTypes.DEFAULT_TYPE):
     phone = update.message.text.strip()
-    
+
     if not PHONE_REGEX.match(phone):
         await update.message.reply_text(
             "❌ សូមពិនិត្យទម្រង់លេខទូរស័ព្ទ​​ ឬ​ លេខផ្លាក។\n"
@@ -125,13 +130,12 @@ async def receive_phone(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "Type /cancel to abort."
         )
         return WAITING_PHONE
-    
+
     clean_phone = clean_phone_number(phone)
-    context.user_data['register_phone'] = clean_phone
-    
+    context.user_data["register_phone"] = clean_phone
+
     await update.message.reply_text(
-        "✅ សូមផ្ញើលេខផ្លាករថយន្តឥឡូវនេះ:\n"
-        "✅ Now please send the vehicle plate number:"
+        "✅ សូមផ្ញើលេខផ្លាករថយន្តឥឡូវនេះ:\n" "✅ Now please send the vehicle plate number:"
     )
     return WAITING_PLATE
 
@@ -143,32 +147,37 @@ async def receive_plate(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "❌ សូមពិនិត្យទម្រង់លេខទូរស័ព្ទ​​ ឬ​ លេខផ្លាក។\n"
             "❌ Please check the phone number or plate format.\n\n"
             "Type /cancel to abort.",
-            parse_mode='Markdown'
+            parse_mode="Markdown",
         )
         return WAITING_PLATE
-    
-    clean_phone = context.user_data['register_phone']
+
+    clean_phone = context.user_data["register_phone"]
     admin_chat = update.effective_chat.id
 
     customer_registry[clean_phone] = {
         "admin_chat": admin_chat,
         "customer_chat": None,
         "status": "registered",
-        "plate": plate  
+        "plate": plate,
     }
 
     # Generate QR code
     bot_username = (await context.bot.get_me()).username
     deep_link = f"https://t.me/{bot_username}?start={clean_phone}"
 
-    qr = qrcode.QRCode(version=1, error_correction=qrcode.constants.ERROR_CORRECT_L, box_size=10, border=4)
+    qr = qrcode.QRCode(
+        version=1,
+        error_correction=qrcode.constants.ERROR_CORRECT_L,
+        box_size=10,
+        border=4,
+    )
     qr.add_data(deep_link)
     qr.make(fit=True)
 
     img = qr.make_image(fill_color="black", back_color="white")
     bio = BytesIO()
-    bio.name = 'qr_code.png'
-    img.save(bio, 'PNG')
+    bio.name = "qr_code.png"
+    img.save(bio, "PNG")
     bio.seek(0)
 
     caption = (
@@ -190,31 +199,29 @@ async def receive_plate(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"{deep_link}"
     )
 
-    await update.message.reply_photo(
-        photo=bio,
-        caption=caption
-    )
+    await update.message.reply_photo(photo=bio, caption=caption)
 
     return ConversationHandler.END
+
 
 async def receive_customer_phone(update: Update, context: ContextTypes.DEFAULT_TYPE):
     phone = update.message.text.strip()
     clean_phone = clean_phone_number(phone)
     customer_chat = update.effective_chat.id
-    
+
     if clean_phone not in customer_registry:
         await update.message.reply_text(
             "❌ *រកមិនឃើញលេខទូរស័ព្ទ*\n\n"
             "លេខនេះមិនទាន់បានចុះឈ្មោះនៅឡើយ។ សូមសុំព័ត៌មាននៅគេហទំព័រសេវាកម្ម។\n\n"
             "❌ *Phone number not found*\n\n"
             "This number isn't registered yet. Please ask at the service desk.",
-            parse_mode='Markdown'
+            parse_mode="Markdown",
         )
         return ConversationHandler.END
-    
+
     customer_registry[clean_phone]["customer_chat"] = customer_chat
     customer_registry[clean_phone]["status"] = "waiting"
-    
+
     admin_message = (
         f"✅ បានចុះឈ្មោះអតិថិជនថ្មីរួចរាល់\n\n"
         f"📱 លេខទូរស័ព្ទ : {clean_phone}\n"
@@ -225,7 +232,7 @@ async def receive_customer_phone(update: Update, context: ContextTypes.DEFAULT_T
         f"🚗 Plate : {customer_registry[clean_phone].get('plate', 'Not provided')}\n"
         f"⏳ Status: Waiting for service"
     )
-    
+
     customer_message = (
         f"✅ អតិថិជនបានចុះឈ្មោះជោគជ័យ!!\n\n"
         f"📱 លេខទូរស័ព្ទ : {clean_phone}\n"
@@ -236,17 +243,14 @@ async def receive_customer_phone(update: Update, context: ContextTypes.DEFAULT_T
         f"🚗 Plate : {customer_registry[clean_phone].get('plate', 'Not provided')}\n\n"
         "You'll be notified when your car is ready."
     )
-    
+
     await context.bot.send_message(
         chat_id=customer_registry[clean_phone]["admin_chat"],
         text=admin_message,
-        parse_mode='Markdown'
+        parse_mode="Markdown",
     )
-    
-    await update.message.reply_text(
-        customer_message,
-        parse_mode='Markdown'
-    )
+
+    await update.message.reply_text(customer_message, parse_mode="Markdown")
     return ConversationHandler.END
 
 
@@ -257,71 +261,77 @@ async def ready(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "❌ You are not authorized to use this command."
         )
         return
-    
+
     ready_customers = {
-        phone: data for phone, data in customer_registry.items()
+        phone: data
+        for phone, data in customer_registry.items()
         if data["customer_chat"] and data["status"] == "waiting"
     }
-    
+
     if not ready_customers:
         await update.message.reply_text(
             "🚫 គ្មានអតិថិជនណាកំពុងរង់ចាំការជូនដំណឹងទេ។\n"
             "🚫 No customers currently waiting for notification."
         )
         return
-    
+
     buttons = [
-        [InlineKeyboardButton(f"{phone} ({data.get('plate', 'No plate')})", callback_data=f"ready_{phone}")]
+        [
+            InlineKeyboardButton(
+                f"{phone} ({data.get('plate', 'No plate')})",
+                callback_data=f"ready_{phone}",
+            )
+        ]
         for phone, data in ready_customers.items()
     ]
-    
+
     await update.message.reply_text(
         "📢 ជ្រើសរើសអតិថិជនដើម្បីជូនដំណឹង (លេខទូរស័ព្ទ - ផ្លាកលេខ):\n"
-        "📢 Select customer to notify (Phone - Plate):", 
-        reply_markup=InlineKeyboardMarkup(buttons)
+        "📢 Select customer to notify (Phone - Plate):",
+        reply_markup=InlineKeyboardMarkup(buttons),
     )
+
 
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
-    
+
     if query.data.startswith("ready_"):
         phone = query.data[6:]
         customer_data = customer_registry.get(phone)
-        
+
         if customer_data and customer_data["customer_chat"]:
-            plate = customer_data.get('plate', 'unknown plate')
+            plate = customer_data.get("plate", "unknown plate")
             await context.bot.send_message(
                 chat_id=customer_data["customer_chat"],
                 text=(
-                f"✨ *ជំរាបសួរ! រថយន្តរបស់លោកអ្នកត្រូវបានលាងសំអាតរួចរាល់ហើយ។ !* ✨\n\n"
-                f"📱 លេខទូរស័ព្ទ : {phone}\n"
-                f"🚗 លេខផ្លាក : {plate}\n\n"
-                "សូមអរគុណសម្រាប់ការរង់ចាំ និងការជឿទុកចិត្តលើសេវាកម្មរបស់យើងខ្ញុំ។ 🚗✨\n\n"
-                "✨ *Dear valued customer! Your car has been washed and is now ready.* ✨\n\n"
-                f"📱 Phone : {phone}\n"
-                f"🚗 Plate : {plate}\n\n"
-                "Thank you for your patience and trust in our service."
+                    f"✨ *ជំរាបសួរ! រថយន្តរបស់លោកអ្នកត្រូវបានលាងសំអាតរួចរាល់ហើយ។ !* ✨\n\n"
+                    f"📱 លេខទូរស័ព្ទ : {phone}\n"
+                    f"🚗 លេខផ្លាក : {plate}\n\n"
+                    "សូមអរគុណសម្រាប់ការរង់ចាំ និងការជឿទុកចិត្តលើសេវាកម្មរបស់យើងខ្ញុំ។ 🚗✨\n\n"
+                    "✨ *Dear valued customer! Your car has been washed and is now ready.* ✨\n\n"
+                    f"📱 Phone : {phone}\n"
+                    f"🚗 Plate : {plate}\n\n"
+                    "Thank you for your patience and trust in our service."
                 ),
-                parse_mode='Markdown'
+                parse_mode="Markdown",
             )
             await context.bot.send_message(
                 chat_id=customer_data["admin_chat"],
                 text=(
-                f"✅ បានជូនដំណឹងអតិថិជនដោយជោគជ័យថារថយន្តរួចរាល់\n\n"
-                f"📱 លេខទូរស័ព្ទ : {phone}\n"
-                f"🚗 លេខផ្លាក : {plate}\n\n"
-                f"✅ Successfully notified customer that car is ready\n\n"
-                f"📱 Phone : {phone}\n"
-                f"🚗 Plate : {plate}\n\n"
+                    f"✅ បានជូនដំណឹងអតិថិជនដោយជោគជ័យថារថយន្តរួចរាល់\n\n"
+                    f"📱 លេខទូរស័ព្ទ : {phone}\n"
+                    f"🚗 លេខផ្លាក : {plate}\n\n"
+                    f"✅ Successfully notified customer that car is ready\n\n"
+                    f"📱 Phone : {phone}\n"
+                    f"🚗 Plate : {plate}\n\n"
                 ),
-                parse_mode='Markdown'
+                parse_mode="Markdown",
             )
             customer_registry[phone]["status"] = "ready"
         else:
             await query.edit_message_text(
-                "❌ រកមិនឃើញអតិថិជនទេ\n"
-                "❌ Could not find customer."
+                "❌ រកមិនឃើញអតិថិជនទេ\n" "❌ Could not find customer."
             )
 
 
@@ -369,12 +379,14 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         print(f"Error sending status message: {e}")
  """
+
+
 # Admin management functions
 def load_admins():
     """Load admin IDs from file or create with default if not exists"""
     if os.path.exists(ADMIN_FILE):
         try:
-            with open(ADMIN_FILE, 'r', encoding='utf-8') as f:
+            with open(ADMIN_FILE, "r", encoding="utf-8") as f:
                 content = f.read().strip()
                 if not content:
                     raise ValueError("Admin file is empty")
@@ -393,24 +405,28 @@ def load_admins():
 
     # Create file with default admins if doesn't exist or is invalid
     try:
-        with open(ADMIN_FILE, 'w', encoding='utf-8') as f:
+        with open(ADMIN_FILE, "w", encoding="utf-8") as f:
             json.dump(DEFAULT_ADMINS, f)
     except Exception as e:
         print(f"Error writing admin file: {e}")
     return DEFAULT_ADMINS
 
+
 def save_admins(admin_list):
     """Save admin IDs to file"""
-    with open(ADMIN_FILE, 'w') as f:
+    with open(ADMIN_FILE, "w") as f:
         json.dump(admin_list, f)
+
 
 # Initialize admins
 admins = load_admins()
 
+
 # Helper functions
 def clean_phone_number(phone: str) -> str:
     """Normalize phone number by removing all non-digit characters"""
-    return ''.join(c for c in phone if c.isdigit())
+    return "".join(c for c in phone if c.isdigit())
+
 
 # Admin management commands
 async def add_admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -461,6 +477,7 @@ async def add_admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await update.message.reply_text(response or "No valid admin IDs provided.")
 
+
 async def remove_admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Remove an admin"""
     if update.effective_user.id not in admins:
@@ -482,6 +499,7 @@ async def remove_admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except ValueError:
         await update.message.reply_text("❌ Invalid user ID")
 
+
 async def list_admins(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """List all admins"""
     if update.effective_user.id not in admins:
@@ -491,11 +509,12 @@ async def list_admins(update: Update, context: ContextTypes.DEFAULT_TYPE):
     admin_list = "\n".join(str(admin) for admin in admins)
     await update.message.reply_text(f"👑 Admins:\n{admin_list}")
 
+
 def load_group_id():
     """Load group ID from file or return None if not set"""
     try:
         if os.path.exists(GROUP_FILE):
-            with open(GROUP_FILE, 'r', encoding='utf-8') as f:
+            with open(GROUP_FILE, "r", encoding="utf-8") as f:
                 content = f.read().strip()
                 if not content:
                     return None
@@ -523,13 +542,17 @@ def load_group_id():
         pass
     return None
 
+
 def save_group_id(group_id):
     """Save group ID to file"""
-    with open(GROUP_FILE, 'w', encoding='utf-8') as f:
+    with open(GROUP_FILE, "w", encoding="utf-8") as f:
         json.dump(group_id, f)
+
 
 # Initialize group_id
 group_id = load_group_id() or GROUP_ID  # Fallback to original GROUP_ID if not set
+
+
 async def set_group(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Set the notification group ID"""
     if update.effective_user.id not in admins:
@@ -551,7 +574,10 @@ async def set_group(update: Update, context: ContextTypes.DEFAULT_TYPE):
         group_id = new_group_id
         await update.message.reply_text(f"✅ Notification group set to: {new_group_id}")
     except ValueError:
-        await update.message.reply_text("❌ Group ID must be an integer (include the - for supergroups)")
+        await update.message.reply_text(
+            "❌ Group ID must be an integer (include the - for supergroups)"
+        )
+
 
 async def show_group(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Show current notification group ID"""
@@ -561,12 +587,12 @@ async def show_group(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await update.message.reply_text(f"Current notification group ID: {group_id}")
 
+
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
-        "ប្រតិបត្តិការត្រូវបានបោះបង់។\n"
-        "Operation cancelled."
-    )
+    await update.message.reply_text("ប្រតិបត្តិការត្រូវបានបោះបង់។\n" "Operation cancelled.")
     return ConversationHandler.END
+
+
 # Add this handler function with the other command handlers
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
@@ -585,7 +611,6 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "ពាក្យបញ្ជាសម្រាប់អ្នកគ្រប់គ្រង៖\n"
             "/register - ចុះឈ្មោះអតិថិជនថ្មី\n"
             "/ready - ជូនដំណឹងអតិថិជនថារថយន្តរួចរាល់\n"
-    
             "/cancel - បោះបង់ប្រតិបត្តិការបច្ចុប្បន្ន\n\n"
             "ពាក្យបញ្ជាសម្រាប់អតិថិជន៖\n"
             "/start - ចាប់ផ្តើមដំណើរការចុះឈ្មោះ"
@@ -603,44 +628,55 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "2. ផ្ញើលេខទូរស័ព្ទរបស់អ្នកនៅពេលស្នើសុំ\n"
             "3. អ្នកនឹងទទួលបានការជូនដំណឹងនៅពេលរថយន្តរបស់អ្នករួចរាល់"
         )
-    
-    await update.message.reply_text(help_text, parse_mode='Markdown')
+
+    await update.message.reply_text(help_text, parse_mode="Markdown")
+
 
 def main():
-    app = ApplicationBuilder().token("7542010152:AAHNUnrAXmOgXt3SG6pJVSzU6ArMMurzquw").build() #chat id on production #7542010152:AAHNUnrAXmOgXt3SG6pJVSzU6ArMMurzquw
+    load_dotenv()
+    TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+    if not TELEGRAM_BOT_TOKEN:
+        raise RuntimeError("TELEGRAM_BOT_TOKEN not set in .env file")
+    app = ApplicationBuilder().token(TELEGRAM_BOT_TOKEN).build()
 
     # Conversation handlers
     reg_conv_handler = ConversationHandler(
-        entry_points=[CommandHandler('register', register)],
+        entry_points=[CommandHandler("register", register)],
         states={
-            WAITING_PHONE: [MessageHandler(filters.TEXT & ~filters.COMMAND, receive_phone)],
-            WAITING_PLATE: [MessageHandler(filters.TEXT & ~filters.COMMAND, receive_plate)]
+            WAITING_PHONE: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, receive_phone)
+            ],
+            WAITING_PLATE: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, receive_plate)
+            ],
         },
-        fallbacks=[CommandHandler('cancel', cancel)]
+        fallbacks=[CommandHandler("cancel", cancel)],
     )
 
     customer_conv_handler = ConversationHandler(
-        entry_points=[CommandHandler('start', start)],
+        entry_points=[CommandHandler("start", start)],
         states={
-            WAITING_CUSTOMER: [MessageHandler(filters.TEXT & ~filters.COMMAND, receive_customer_phone)]
+            WAITING_CUSTOMER: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, receive_customer_phone)
+            ]
         },
-        fallbacks=[CommandHandler('cancel', cancel)]
+        fallbacks=[CommandHandler("cancel", cancel)],
     )
 
-# Register handlers
+    # Register handlers
     app.add_handler(reg_conv_handler)
     app.add_handler(customer_conv_handler)
-    app.add_handler(CommandHandler('ready', ready))
+    app.add_handler(CommandHandler("ready", ready))
     app.add_handler(CallbackQueryHandler(button_handler))
-    app.add_handler(CommandHandler('help', help_command))
-    app.add_handler(CommandHandler('addadmin', add_admin))
-    app.add_handler(CommandHandler('removeadmin', remove_admin))
-    app.add_handler(CommandHandler('listadmins', list_admins))
-    app.add_handler(CommandHandler('setgroup', set_group))
-    app.add_handler(CommandHandler('showgroup', show_group))
+    app.add_handler(CommandHandler("help", help_command))
+    app.add_handler(CommandHandler("addadmin", add_admin))
+    app.add_handler(CommandHandler("removeadmin", remove_admin))
+    app.add_handler(CommandHandler("listadmins", list_admins))
+    app.add_handler(CommandHandler("setgroup", set_group))
+    app.add_handler(CommandHandler("showgroup", show_group))
     print("🚗 Speed Car Wash bot is running...")
     app.run_polling()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

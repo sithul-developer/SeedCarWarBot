@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: SpeedCarWashBot
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: start.sh
+    envVars:
+      - key: TELEGRAM_BOT_TOKEN
+        value: ${TELEGRAM_BOT_TOKEN}
+      - key: ADMIN_IDS
+        value: ${ADMIN_IDS}
+      - key: GROUP_ID
+        value: ${GROUP_ID}
