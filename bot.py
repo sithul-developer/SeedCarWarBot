@@ -19,7 +19,7 @@ from datetime import datetime, timedelta
 from dotenv import load_dotenv
 
 load_dotenv()  # Load environment variables from .env file if present
-TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+TOKEN = os.getenv("TELEGRAM_TOKEN")
 # Constants
 ADMIN_FILE = "admins.json"  # File to store admin IDs
 GROUP_FILE = "group_ids.json"
@@ -944,26 +944,6 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 # Protection function game to ensure only admins can access certain commands
-def is_game_message(text: str) -> bool:
-    """Check if message contains game/gambling/spam keywords"""
-    game_keywords = [
-        "game",
-        "gamble",
-        "bet",
-        "casino",
-        "lottery",
-        "slot",
-        "poker",
-        "baccarat",
-        "roulette",
-        "ភ្នាល់",
-        "ល្បែង",
-        "ស្លត់",
-        "បាការ៉ាត់",
-        "ឡូតេ",
-    ]
-    text_lower = text.lower()
-    return any(keyword in text_lower for keyword in game_keywords)
 
 
 def is_prohibited_message(text: str) -> bool:
@@ -1022,25 +1002,6 @@ async def filter_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Filter out prohibited content (games/gambling/crypto scams)"""
     if not update.message or not update.message.text:
         return
-    if is_game_message(update.message.text):
-        user = update.effective_user
-        warning_msg = (
-            "⚠️ *Warning* ⚠️\n\n"
-            "Game/gambling messages are not allowed in this bot.\n"
-            "Repeated violations may result in being blocked.\n\n"
-            "សារល្បែង/ភ្នាល់មិនត្រូវបានអនុញ្ញាតនៅក្នុងបូតនេះទេ។\n"
-            "ការបំពានដដែលៗអាចនឹងនាំឱ្យមានការហាមឃាត់។"
-        )
-
-        try:
-            await update.message.delete()
-            await context.bot.send_message(
-                chat_id=update.effective_chat.id,
-                text=warning_msg,
-                parse_mode="Markdown",
-            )
-        except Exception as e:
-            print(f"Couldn't delete game message: {e}")
 
     if is_prohibited_message(update.message.text):
         user = update.effective_user
@@ -1049,14 +1010,14 @@ async def filter_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "Prohibited content detected!\n"
             "This bot does not allow:\n"
             "- Games/Gambling\n"
-            "- Crypto airdrops/scams\n"
+            "- Crypto Scams\n"
             "- URL links\n"
             "Repeated violations may result in being blocked.\n\n"
             "ការប្រកាសមាតិកាដែលមិនត្រូវបានអនុញ្ញាត៖\n"
             "- ល្បែង/ភ្នាល់\n"
-            "- ក្រុមហ៊ុនអាកាសយាន/ក្បត់\n"
+            "- ការបោកប្រាស់គ្រីបតូ\n"
             "- តំណភ្ជាប់ URL\n"
-            "ការរំលោភបំពានដដែលៗអាចនឹងនាំឱ្យមានការហាមឃាត់។"
+            "ការរំលោភបំពានដដែលៗអាចនឹងនាំឱ្យមានការហាមឃាត់។."
         )
 
         try:
@@ -1077,6 +1038,8 @@ async def filter_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 # Main function to set up the bot and handlers
+
+
 def main():
     app = ApplicationBuilder().token(TOKEN).build()
 
@@ -1099,21 +1062,23 @@ def main():
         },
         fallbacks=[CommandHandler("cancel", cancel)],
     )
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, filter_messages)),
+
     # Register handlers
     app.add_handler(reg_conv_handler)
     app.add_handler(customer_conv_handler)
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, filter_messages))
+
     app.add_handler(CommandHandler("ready", ready))
     app.add_handler(CallbackQueryHandler(button_handler))
     app.add_handler(CommandHandler("help", help_command))
     app.add_handler(CommandHandler("addadmin", add_admin))
     app.add_handler(CommandHandler("removeadmin", remove_admin))
-    app.add_handler(CommandHandler("listadmins", list_admins))
-    # app.add_handler(CommandHandler('addgroup', add_group))
-    # app.add_handler(CommandHandler('removegroup', remove_group))
     app.add_handler(CommandHandler("status", check_status))
+    app.add_handler(CommandHandler("listadmins", list_admins))
+    app.add_handler(CommandHandler("cancel", cancel))
 
-    print("🚗 Speed Car Wash bot is running...")
+    # Webhook setup for Render
+
     app.run_polling()
 
 
