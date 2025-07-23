@@ -4,4 +4,3 @@ qrcode==8.2
 Pillow==11.2.1
 python-dotenv==1.0.0
 gunicorn
-python-telegram-bot[webhooks]==20.3  # or your current PTB version
