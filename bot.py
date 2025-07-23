@@ -17,7 +17,7 @@ import time
 import threading
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
-from telegram.error import Conflict
+
 load_dotenv()  # Load environment variables from .env file if present
 TOKEN = os.getenv("TELEGRAM_TOKEN")
 # Constants
@@ -1078,22 +1078,14 @@ async def filter_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # Main function to set up the bot and handlers
 def main():
-    load_dotenv()
-    TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
-    if not TELEGRAM_BOT_TOKEN:
-        raise RuntimeError("TELEGRAM_BOT_TOKEN not set in .env file")
-    app = ApplicationBuilder().token(TELEGRAM_BOT_TOKEN).build()
+    app = ApplicationBuilder().token(TOKEN).build()
 
-    # Conversation handlers
     reg_conv_handler = ConversationHandler(
         entry_points=[CommandHandler("register", register)],
         states={
-            WAITING_PHONE: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, receive_phone)
-            ],
             WAITING_PLATE: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, receive_plate)
-            ],
+            ]
         },
         fallbacks=[CommandHandler("cancel", cancel)],
     )
@@ -1101,8 +1093,8 @@ def main():
     customer_conv_handler = ConversationHandler(
         entry_points=[CommandHandler("start", start)],
         states={
-            WAITING_CUSTOMER: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, receive_customer_phone)
+            WAITING_PLATE: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, receive_plate)
             ]
         },
         fallbacks=[CommandHandler("cancel", cancel)],
@@ -1117,26 +1109,13 @@ def main():
     app.add_handler(CommandHandler("addadmin", add_admin))
     app.add_handler(CommandHandler("removeadmin", remove_admin))
     app.add_handler(CommandHandler("listadmins", list_admins))
-    #app.add_handler(CommandHandler("setgroup", set_group))
-    #app.add_handler(CommandHandler("showgroup", show_group))
+    # app.add_handler(CommandHandler('addgroup', add_group))
+    # app.add_handler(CommandHandler('removegroup', remove_group))
+    app.add_handler(CommandHandler("status", check_status))
+
     print("🚗 Speed Car Wash bot is running...")
-
-    try:
-        app.run_polling()
-    except Conflict as e:
-        print(f"⚠️ Bot is already running elsewhere: {e}")
-        # Optionally send yourself a notification
-    except Exception as e:
-        print(f"⚠️ Unexpected error: {e}")
-
-
-async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Log errors caused by updates."""
-    print(f"⚠️ Error while handling update: {context.error}")
+    app.run_polling()
 
 
 if __name__ == "__main__":
     main()
-
-
-
