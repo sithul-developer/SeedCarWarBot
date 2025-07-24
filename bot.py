@@ -945,7 +945,6 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # Protection function game to ensure only admins can access certain commands
 
-
 def is_prohibited_message(text: str) -> bool:
     """Check if message contains game/gambling/crypto scam/airdrop keywords"""
     prohibited_keywords = [
@@ -998,46 +997,92 @@ def is_prohibited_message(text: str) -> bool:
     return any(keyword in text_lower for keyword in prohibited_keywords) or has_url
 
 
+async def is_prohibited_image(image_file: BytesIO) -> bool:
+    """Check if image contains gambling/crypto scam characteristics"""
+    try:
+        with Image.open(image_file) as img:
+            # Convert to numpy array for analysis
+            img_array = np.array(img)
+
+            # Example checks (customize these thresholds based on your needs):
+            # 1. Check if image is mostly red (common in gambling/casino ads)
+            red_dominant = np.mean(img_array[:, :, 0]) > 180  # High red channel
+
+            # 2. Check for bright/neon colors (common in scam ads)
+            brightness = np.mean(img_array) > 200  # High brightness
+
+            # 3. Check if image contains QR codes (common in crypto scams)
+            # (Would need additional QR detection library)
+
+            return red_dominant or brightness
+
+    except Exception as e:
+        print(f"Image analysis error: {e}")
+        return False
+
+
 async def filter_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Filter out prohibited content (games/gambling/crypto scams)"""
-    if not update.message or not update.message.text:
+    """Filter out prohibited content in text, images, and documents"""
+    if not update.message:
         return
 
-    if is_prohibited_message(update.message.text):
-        user = update.effective_user
-        warning_msg = (
-            "⚠️ *WARNING* ⚠️\n\n"
-            "Prohibited content detected!\n"
-            "This bot does not allow:\n"
-            "- Games/Gambling\n"
-            "- Crypto Scams\n"
-            "- URL links\n"
-            "Repeated violations may result in being blocked.\n\n"
-            "ការប្រកាសមាតិកាដែលមិនត្រូវបានអនុញ្ញាត៖\n"
-            "- ល្បែង/ភ្នាល់\n"
-            "- ការបោកប្រាស់គ្រីបតូ\n"
-            "- តំណភ្ជាប់ URL\n"
-            "ការរំលោភបំពានដដែលៗអាចនឹងនាំឱ្យមានការហាមឃាត់។."
-        )
+    # Check text messages
+    if update.message.text and is_prohibited_message(update.message.text):
+        await handle_prohibited_content(update, context, "text")
+        return
 
+    # Check image captions
+    if update.message.caption and is_prohibited_message(update.message.caption):
+        await handle_prohibited_content(update, context, "image caption")
+        return
+
+    # Check images (photos)
+    if update.message.photo:
         try:
-            await update.message.delete()
-            await context.bot.send_message(
-                chat_id=update.effective_chat.id,
-                text=warning_msg,
-                parse_mode="Markdown",
-            )
+            # Get the highest resolution photo
+            photo_file = await update.message.photo[-1].get_file()
+            image_data = BytesIO()
+            await photo_file.download_to_memory(image_data)
 
-            # Log the violation
-            print(
-                f"Blocked prohibited message from {user.id}: {update.message.text[:50]}..."
-            )
+            if await is_prohibited_image(image_data):
+                await handle_prohibited_content(update, context, "image content")
+                return
 
         except Exception as e:
-            print(f"Couldn't delete prohibited message: {e}")
+            print(f"Image processing error: {e}")
 
 
-# Main function to set up the bot and handlers
+async def handle_prohibited_content(
+    update: Update, context: ContextTypes.DEFAULT_TYPE, content_type: str
+):
+    """Handle the deletion and warning for prohibited content"""
+    user = update.effective_user
+    warning_msg = (
+        "⚠️ *WARNING* ⚠️\n\n"
+        f"Prohibited {content_type} detected!\n"
+        "This bot does not allow:\n"
+        "- Games/Gambling content\n"
+        "- Crypto Scams\n"
+        "- Suspicious images\n\n"
+        "ការប្រកាសមាតិកាដែលមិនត្រូវបានអនុញ្ញាត៖\n"
+        "- ល្បែង/ភ្នាល់\n"
+        "- ការបោកប្រាស់គ្រីបតូ\n"
+        "- រូបភាពសង្ស័យ"
+    )
+
+    try:
+        await update.message.delete()
+        await context.bot.send_message(
+            chat_id=update.effective_chat.id,
+            text=warning_msg,
+            parse_mode="Markdown",
+        )
+
+        # Log the violation
+        print(f"Blocked prohibited {content_type} from {user.id} ({user.username})")
+
+    except Exception as e:
+        print(f"Couldn't delete prohibited message: {e}")
 
 
 def main():
@@ -1066,7 +1111,12 @@ def main():
     # Register handlers
     app.add_handler(reg_conv_handler)
     app.add_handler(customer_conv_handler)
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, filter_messages))
+    app.add_handler(MessageHandler(filters.PHOTO & ~filters.COMMAND, filter_messages))
+    app.add_handler(
+        MessageHandler(
+            (filters.CAPTION | filters.TEXT) & ~filters.COMMAND, filter_messages
+        )
+    )
 
     app.add_handler(CommandHandler("ready", ready))
     app.add_handler(CallbackQueryHandler(button_handler))
