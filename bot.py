@@ -1021,6 +1021,24 @@ async def is_prohibited_image(image_file: BytesIO) -> bool:
         return False
 
 
+async def all_users(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """List all users registered in the bot"""
+    if update.effective_user.id not in admins:
+        await update.message.reply_text("❌ You are not authorized!")
+        return
+
+    if not customer_registry:
+        await update.message.reply_text("No users registered yet.")
+        return
+
+    user_list = "\n".join(
+        f"🛂 {qn} - {data.get('customer_name', 'Unknown')} - {data.get('plate', 'No plate')}"
+        for qn, data in customer_registry.items()
+    )
+
+    await update.message.reply_text(f"Registered Users:\n{user_list}")
+
+
 async def filter_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Filter out prohibited content in text, images, and documents"""
     if not update.message:
@@ -1071,18 +1089,38 @@ async def handle_prohibited_content(
     )
 
     try:
-        await update.message.delete()
-        await context.bot.send_message(
-            chat_id=update.effective_chat.id,
-            text=warning_msg,
-            parse_mode="Markdown",
+        # Only try to delete if in a group/supergroup and bot has permission
+        chat = update.effective_chat
+        bot_user = await context.bot.get_me()
+        chat_member = await context.bot.get_chat_member(chat.id, bot_user.id)
+        can_delete = (
+            chat.type in ["group", "supergroup"]
+            and hasattr(chat_member, "can_delete_messages")
+            and getattr(chat_member, "can_delete_messages", False)
         )
-
-        # Log the violation
-        print(f"Blocked prohibited {content_type} from {user.id} ({user.username})")
-
+        if can_delete:
+            await update.message.delete()
+            deleted = True
+        else:
+            print(
+                "Bot cannot delete messages in this chat (insufficient permissions, not a group, or attribute missing)."
+            )
+            deleted = False
     except Exception as e:
+        # Telegram may raise "Message can't be deleted for everyone"
         print(f"Couldn't delete prohibited message: {e}")
+        deleted = False
+
+    await context.bot.send_message(
+        chat_id=update.effective_chat.id,
+        text=warning_msg,
+        parse_mode="Markdown",
+    )
+
+    # Log the violation
+    print(
+        f"Blocked prohibited {content_type} from {user.id} ({user.username}) (deleted: {deleted})"
+    )
 
 
 def main():
