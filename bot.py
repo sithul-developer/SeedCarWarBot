@@ -1,6 +1,9 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 import qrcode
 from io import BytesIO
+import re
+from PIL import Image
+import numpy as np
 from telegram.ext import (
     ApplicationBuilder,
     CommandHandler,
@@ -945,6 +948,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # Protection function game to ensure only admins can access certain commands
 
+
 def is_prohibited_message(text: str) -> bool:
     """Check if message contains game/gambling/crypto scam/airdrop keywords"""
     prohibited_keywords = [
@@ -1147,6 +1151,7 @@ def main():
     )
 
     # Register handlers
+
     app.add_handler(reg_conv_handler)
     app.add_handler(customer_conv_handler)
     app.add_handler(MessageHandler(filters.PHOTO & ~filters.COMMAND, filter_messages))
